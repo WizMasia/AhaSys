@@ -6,6 +6,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4-38bdf8.svg)](https://tailwindcss.com/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-brightgreen.svg)](https://ahasys.onrender.com)
+
+🚀 **공식 라이브 데모 웹사이트**: [https://ahasys.onrender.com](https://ahasys.onrender.com)
 
 **아하시스턴트(aHaSys)**는 기업의 마케팅 광고 문구, 상품 설명서, 웹사이트 랜딩 페이지 등 다양한 미디어 자산이 대한민국 광고 표시규제법 및 공정거래위원회 가이드라인을 준수하는지 실시간 분석·진단하는 고성능 자율 준법 감시 플랫폼입니다.
 

@@ -87,6 +87,24 @@ npm run build
 npm start
 ```
 
+### 6) Docker를 이용한 간편 로컬 구동 (Alternative)
+로컬에 Node.js를 설치하지 않고 Docker 환경을 활용하여 즉시 구동할 수 있습니다.
+
+```bash
+# 1. Docker 이미지 빌드
+docker build -t ahasys:latest .
+
+# 2. Docker 컨테이너 실행 (Gemini API Key 기입 필수)
+docker run -d \
+  -p 3000:3000 \
+  -e GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE" \
+  -e NODE_ENV="production" \
+  --name ahasys-app \
+  ahasys:latest
+```
+
+실행 완료 후 브라우저에서 `http://localhost:3000`으로 바로 접속할 수 있습니다.
+
 ---
 
 ## 🛡️ 저작권 및 면책 조항 (Copyright & Support Info)

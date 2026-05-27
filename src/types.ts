@@ -37,6 +37,8 @@ export interface Violation {
   deductionPoints: number;
   originalFragment: string;
   replacement: string;
+  isCitationVerified?: boolean;
+  actionPlan?: string[];
 }
 
 export interface PastCase {
@@ -61,6 +63,17 @@ export interface SystemAnalysisResult {
   pastCases: PastCase[];
   analysisTimeMs: number;
   memoryUsedMb?: number;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  imageAlternativeProposal?: {
+    detectedVisualCopys: string[];
+    visualViolations: string[];
+    visualRemediationSteps: string[];
+    alternativeVisualDraft: string;
+  };
 }
 
 export interface RegulationClause {

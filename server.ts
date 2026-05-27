@@ -31,7 +31,7 @@ const ai = new GoogleGenAI({
 });
 
 // Port configuration
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 // 2. Comprehensive 5-Tier Legal and Ethical Guideline Library
 // Covers global & local goods, cosmetics, health supplements, finance, medicine, and global/local historical/social disasters

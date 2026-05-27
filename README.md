@@ -10,6 +10,8 @@
 
 🚀 **공식 라이브 데모 웹사이트**: [https://ahasys.onrender.com](https://ahasys.onrender.com)
 
+![aHaSys AI Compliance Platform Live Demo Screenshot](./docs/images/demo.png)
+
 **아하시스턴트(aHaSys)**는 기업의 마케팅 광고 문구, 상품 설명서, 웹사이트 랜딩 페이지 등 다양한 미디어 자산이 대한민국 광고 표시규제법 및 공정거래위원회 가이드라인을 준수하는지 실시간 분석·진단하는 고성능 자율 준법 감시 플랫폼입니다.
 
 ---

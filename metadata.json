@@ -1,0 +1,6 @@
+{
+  "name": "안심심 (AnSimSim)",
+  "description": "AI 동반자형 자율 법률 및 광고 규제 심사(Compliance Review) 솔루션입니다. 3단계 심사 워크플로우와 5단계 법률 위계를 내장하여 대안 문구와 비전 진단을 제공합니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

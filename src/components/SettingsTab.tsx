@@ -245,7 +245,7 @@ export function SettingsTab() {
               {otherPreset === "openrouter" && (
                 <div className="text-indigo-400 flex items-start gap-1.5">
                   <HelpCircle className="w-4 h-4 shrink-0 text-indigo-400 mt-0.5" />
-                  <span>기본 제공: OpenRouter Gemini 2.5 Flash 프리셋이 선택되었습니다. API Key 필수 기입이 필요합니다.</span>
+                  <span>기본 제공: OpenRouter Free Model 프리셋이 선택되었습니다. API Key 필수 기입이 필요합니다.</span>
                 </div>
               )}
               {otherPreset === "custom" && (
@@ -324,10 +324,10 @@ export function SettingsTab() {
                       type="text"
                       value={draftCustomModel}
                       onChange={(e) => setDraftCustomModel(e.target.value)}
-                      placeholder={otherPreset === 'openai' ? 'gpt-4o-mini' : 'google/gemini-2.5-flash'}
+                      placeholder={otherPreset === 'openai' ? 'gpt-4o-mini' : (otherPreset === 'openrouter' ? 'openrouter/free' : 'google/gemini-2.5-flash')}
                       className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:ring-1 focus:ring-amber-500 font-mono"
                     />
-                    <p className="text-[10px] text-slate-505 font-medium">&bull; 각 제공업체의 모델 명명 규칙에 맞춥니다 (gpt-4o, google/gemini-2.5-flash 등).</p>
+                    <p className="text-[10px] text-slate-505 font-medium">&bull; 각 제공업체의 모델 명명 규칙에 맞춥니다 (gpt-4o, openrouter/free 등).</p>
                   </div>
                 )}
               </div>

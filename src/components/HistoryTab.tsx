@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   Trash2, 
   Database, 
@@ -46,6 +46,35 @@ export function HistoryTab({
   restoreHistoryResult,
   getCsatGradeInfo
 }: HistoryTabProps) {
+  const filteredItems = useMemo(() => {
+    return historyItems.filter(item => {
+      const q = historySearchQuery.trim().toLowerCase();
+      const matchesSearch = !q || 
+        (item.inputText && item.inputText.toLowerCase().includes(q)) ||
+        (item.meta?.productType && item.meta.productType.toLowerCase().includes(q)) ||
+        (item.meta?.regulatoryDomain && item.meta.regulatoryDomain.toLowerCase().includes(q));
+      
+      let matchesCategory = true;
+      if (historyCategoryFilter !== 'all') {
+        const type = item.meta?.productType || "";
+        if (historyCategoryFilter === 'food') matchesCategory = type.includes('식품');
+        else if (historyCategoryFilter === 'cosmetic') matchesCategory = type.includes('화장품');
+        else if (historyCategoryFilter === 'medical') matchesCategory = type.includes('의료');
+        else if (historyCategoryFilter === 'finance') matchesCategory = type.includes('금융');
+        else if (historyCategoryFilter === 'general') matchesCategory = !type.includes('식품') && !type.includes('화장품') && !type.includes('의료') && !type.includes('금융');
+      }
+
+      let matchesVerdict = true;
+      if (historyVerdictFilter !== 'all') {
+        const isPassed = item.score >= 80;
+        if (historyVerdictFilter === 'passed') matchesVerdict = isPassed;
+        else if (historyVerdictFilter === 'failed') matchesVerdict = !isPassed;
+      }
+
+      return matchesSearch && matchesCategory && matchesVerdict;
+    });
+  }, [historyItems, historySearchQuery, historyCategoryFilter, historyVerdictFilter]);
+
   return (
     <div className="space-y-6">
       
@@ -125,32 +154,7 @@ export function HistoryTab({
       <div className="flex justify-between items-center text-[11px] text-slate-500 font-mono pl-1">
         <span>
           조회된 필터링 결과: 총 <strong className="text-amber-500 font-extrabold">{
-            historyItems.filter(item => {
-              const q = historySearchQuery.trim().toLowerCase();
-              const matchesSearch = !q || 
-                (item.inputText && item.inputText.toLowerCase().includes(q)) ||
-                (item.meta?.productType && item.meta.productType.toLowerCase().includes(q)) ||
-                (item.meta?.regulatoryDomain && item.meta.regulatoryDomain.toLowerCase().includes(q));
-              
-              let matchesCategory = true;
-              if (historyCategoryFilter !== 'all') {
-                const type = item.meta?.productType || "";
-                if (historyCategoryFilter === 'food') matchesCategory = type.includes('식품');
-                else if (historyCategoryFilter === 'cosmetic') matchesCategory = type.includes('화장품');
-                else if (historyCategoryFilter === 'medical') matchesCategory = type.includes('의료');
-                else if (historyCategoryFilter === 'finance') matchesCategory = type.includes('금융');
-                else if (historyCategoryFilter === 'general') matchesCategory = !type.includes('식품') && !type.includes('화장품') && !type.includes('의료') && !type.includes('금융');
-              }
-
-              let matchesVerdict = true;
-              if (historyVerdictFilter !== 'all') {
-                const isPassed = item.score >= 80;
-                if (historyVerdictFilter === 'passed') matchesVerdict = isPassed;
-                else if (historyVerdictFilter === 'failed') matchesVerdict = !isPassed;
-              }
-
-              return matchesSearch && matchesCategory && matchesVerdict;
-            }).length
+            filteredItems.length
           }개</strong> 이력 매치
         </span>
         <span>RAG 피팅 전용 퓨샷 활성화</span>
@@ -161,63 +165,13 @@ export function HistoryTab({
         <div className="p-12 border border-dashed rounded-3xl text-center text-slate-500 text-xs">
           저장된 자가 학습용 사례 데이터가 아직 없습니다. 최초 실시간 광고안 탐색을 마치는 즉시 기억 소자 노드가 누적됩니다.
         </div>
-      ) : historyItems.filter(item => {
-        const q = historySearchQuery.trim().toLowerCase();
-        const matchesSearch = !q || 
-          (item.inputText && item.inputText.toLowerCase().includes(q)) ||
-          (item.meta?.productType && item.meta.productType.toLowerCase().includes(q)) ||
-          (item.meta?.regulatoryDomain && item.meta.regulatoryDomain.toLowerCase().includes(q));
-        
-        let matchesCategory = true;
-        if (historyCategoryFilter !== 'all') {
-          const type = item.meta?.productType || "";
-          if (historyCategoryFilter === 'food') matchesCategory = type.includes('식품');
-          else if (historyCategoryFilter === 'cosmetic') matchesCategory = type.includes('화장품');
-          else if (historyCategoryFilter === 'medical') matchesCategory = type.includes('의료');
-          else if (historyCategoryFilter === 'finance') matchesCategory = type.includes('금융');
-          else if (historyCategoryFilter === 'general') matchesCategory = !type.includes('식품') && !type.includes('화장품') && !type.includes('의료') && !type.includes('금융');
-        }
-
-        let matchesVerdict = true;
-        if (historyVerdictFilter !== 'all') {
-          const isPassed = item.score >= 80;
-          if (historyVerdictFilter === 'passed') matchesVerdict = isPassed;
-          else if (historyVerdictFilter === 'failed') matchesVerdict = !isPassed;
-        }
-
-        return matchesSearch && matchesCategory && matchesVerdict;
-      }).length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <div className="p-12 border border-dashed border-slate-800 rounded-3xl text-center text-slate-500 text-xs">
           설정한 필터 조건 및 키워드에 부합하는 검토 이력이 없습니다. 검색어를 조율해 보십시오.
         </div>
       ) : (
         <div className="relative border-l-2 border-indigo-500/20 pl-6 ml-4 space-y-6 py-2">
-          {historyItems.filter(item => {
-            const q = historySearchQuery.trim().toLowerCase();
-            const matchesSearch = !q || 
-              (item.inputText && item.inputText.toLowerCase().includes(q)) ||
-              (item.meta?.productType && item.meta.productType.toLowerCase().includes(q)) ||
-              (item.meta?.regulatoryDomain && item.meta.regulatoryDomain.toLowerCase().includes(q));
-            
-            let matchesCategory = true;
-            if (historyCategoryFilter !== 'all') {
-              const type = item.meta?.productType || "";
-              if (historyCategoryFilter === 'food') matchesCategory = type.includes('식품');
-              else if (historyCategoryFilter === 'cosmetic') matchesCategory = type.includes('화장품');
-              else if (historyCategoryFilter === 'medical') matchesCategory = type.includes('의료');
-              else if (historyCategoryFilter === 'finance') matchesCategory = type.includes('금융');
-              else if (historyCategoryFilter === 'general') matchesCategory = !type.includes('식품') && !type.includes('화장품') && !type.includes('의료') && !type.includes('금융');
-            }
-
-            let matchesVerdict = true;
-            if (historyVerdictFilter !== 'all') {
-              const isPassed = item.score >= 80;
-              if (historyVerdictFilter === 'passed') matchesVerdict = isPassed;
-              else if (historyVerdictFilter === 'failed') matchesVerdict = !isPassed;
-            }
-
-            return matchesSearch && matchesCategory && matchesVerdict;
-          }).map((item, idx) => (
+          {filteredItems.map((item, idx) => (
             <div key={item.id || idx} className="relative">
               
               {/* Time indicator point */}

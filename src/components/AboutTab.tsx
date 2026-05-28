@@ -8,12 +8,10 @@ import {
   ShieldCheck, 
   Cpu 
 } from 'lucide-react';
+import { useApp } from '../contexts/AppContext';
 
-interface AboutTabProps {
-  darkMode: boolean;
-}
-
-export function AboutTab({ darkMode }: AboutTabProps) {
+export function AboutTab() {
+  const { darkMode } = useApp();
   return (
     <div className="space-y-6">
       {/* Category-Neutral General Introduction Board */}

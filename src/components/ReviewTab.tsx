@@ -22,15 +22,13 @@ import {
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { SystemAnalysisResult } from '../types';
+import { useApp } from '../contexts/AppContext';
 
 interface ReviewTabProps {
-  darkMode: boolean;
   errorText: string | null;
   setErrorText: (err: string | null) => void;
   showKeyAlert: boolean;
   setShowKeyAlert: (show: boolean) => void;
-  activeTab: string;
-  setActiveTab: (tab: 'review' | 'about' | 'benchmark' | 'history' | 'settings') => void;
   inputMode: 'text' | 'url';
   setInputMode: (mode: 'text' | 'url') => void;
   inputText: string;
@@ -55,7 +53,6 @@ interface ReviewTabProps {
   handleCopyMarkdown: () => void;
   copied: boolean;
   setShowPrintModal: (show: boolean) => void;
-  fontSize: 'sm' | 'md' | 'lg';
   getCsatGradeInfo: (score: number) => {
     grade: number;
     label: string;
@@ -71,13 +68,10 @@ interface ReviewTabProps {
 }
 
 export function ReviewTab({
-  darkMode,
   errorText,
   setErrorText,
   showKeyAlert,
   setShowKeyAlert,
-  activeTab,
-  setActiveTab,
   inputMode,
   setInputMode,
   inputText,
@@ -102,13 +96,13 @@ export function ReviewTab({
   handleCopyMarkdown,
   copied,
   setShowPrintModal,
-  fontSize,
   getCsatGradeInfo,
   getScoreColor,
   getMarkdownReportString,
   makeLawGoLink,
   getSeverityBadge
 }: ReviewTabProps) {
+  const { darkMode, fontSize, activeTab, setActiveTab } = useApp();
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       

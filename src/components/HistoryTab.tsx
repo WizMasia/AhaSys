@@ -11,9 +11,9 @@ import {
   Copy, 
   FileText 
 } from 'lucide-react';
+import { useApp } from '../contexts/AppContext';
 
 interface HistoryTabProps {
-  darkMode: boolean;
   historyItems: any[];
   historySearchQuery: string;
   setHistorySearchQuery: (query: string) => void;
@@ -33,7 +33,6 @@ interface HistoryTabProps {
 }
 
 export function HistoryTab({
-  darkMode,
   historyItems,
   historySearchQuery,
   setHistorySearchQuery,
@@ -46,6 +45,7 @@ export function HistoryTab({
   restoreHistoryResult,
   getCsatGradeInfo
 }: HistoryTabProps) {
+  const { darkMode } = useApp();
   return (
     <div className="space-y-6">
       

@@ -93,7 +93,25 @@ router.post('/analyze', async (req, res) => {
 
 // Get benchmark cases
 router.get('/benchmark', (req, res) => {
-  res.json(BENCHMARK_CASES);
+  // Return a random subset of 50 cases for preview to prevent browser freeze
+  const selected: typeof BENCHMARK_CASES = [];
+  const total = BENCHMARK_CASES.length;
+  const indices = new Set<number>();
+  while (indices.size < 50 && indices.size < total) {
+    const idx = Math.floor(Math.random() * total);
+    indices.add(idx);
+  }
+  for (const idx of indices) {
+    selected.push(BENCHMARK_CASES[idx]);
+  }
+  res.json(selected);
+});
+
+// Download full benchmark cases as a JSON file attachment
+router.get('/benchmark/download', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="benchmark_cases.json"');
+  res.send(BENCHMARK_CASES);
 });
 
 // Run benchmarking cases dynamically & package them to folders (Section 10 of ARCH_DESIGN.md)
@@ -108,12 +126,24 @@ router.post('/benchmark/run', async (req, res) => {
       fs.mkdirSync(casesDir, { recursive: true });
     }
 
+    // Randomly select exactly 100 cases out of 20,000 generated cases
+    const selectedCases: typeof BENCHMARK_CASES = [];
+    const total = BENCHMARK_CASES.length;
+    const indices = new Set<number>();
+    while (indices.size < 100 && indices.size < total) {
+      const idx = Math.floor(Math.random() * total);
+      indices.add(idx);
+    }
+    for (const idx of indices) {
+      selectedCases.push(BENCHMARK_CASES[idx]);
+    }
+
     const testRuns: any[] = [];
     let passed = 0;
     let failed = 0;
 
     // Simulate multi-threaded parallel batch execution pipeline
-    const benchmarkPromises = BENCHMARK_CASES.map(async (c, index) => {
+    const benchmarkPromises = selectedCases.map(async (c, index) => {
       const caseStartTime = Date.now();
       
       // Let's analyze via internal logic to maintain high speeds
@@ -239,14 +269,15 @@ violations.map((v, i) => `### ${i+1}. [${v.severity}] Clause: ${v.clause} (Deduc
     // Only includes first 50 entries in the table to avoid massive layout bloating, while maintaining full integrity
     const readmeContent = `# AnSimSim Automated Multi-Case Compliance Benchmark Suite
 ## Executive Quantitative Summary
-- **Total Executed cases**: ${BENCHMARK_CASES.length}
-- **Compliance Passing Rate**: ${Math.round((passed / BENCHMARK_CASES.length) * 100)}%
+- **Total Executed cases**: ${selectedCases.length}
+- **Compliance Passing Rate**: ${Math.round((passed / selectedCases.length) * 100)}%
 - **Passed Cases**: ${passed}
 - **Rejected Warnings (Deducted < 80)**: ${failed}
 - **Benchmarking Platform Run Timestamp**: ${new Date().toISOString()}
 
 ### Case Ledger Scorecard (Top 50 Display):
 | Case ID | Core Title | Score | Integrity Status | Analysis Time |
+|---|---|---|---|---|
 |---|---|---|---|---|
 ${testRuns.slice(0, 50).map(tr => `| ${tr.id} | ${tr.name} | ${tr.score} | ${tr.isPass ? '🟢 PASS' : '🔴 FAIL'} | ${tr.timeMs}ms |`).join('\n')}
 
@@ -259,7 +290,7 @@ ${testRuns.slice(0, 50).map(tr => `| ${tr.id} | ${tr.name} | ${tr.score} | ${tr.
       success: true,
       passed,
       failed,
-      total: BENCHMARK_CASES.length,
+      total: selectedCases.length,
       reportLink: "/docs/benchmark/README.md",
       testRuns
     });

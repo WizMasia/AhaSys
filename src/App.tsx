@@ -775,7 +775,7 @@ export default function App() {
               className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'benchmark' ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'text-slate-400 hover:text-slate-250 border border-transparent'}`}
             >
               <Gauge className="w-3.5 h-3.5" />
-              <span>📊 1,000-Case 검정 대시보드</span>
+              <span>📊 무작위 벤치마크 대시보드</span>
             </button>
           )}
           

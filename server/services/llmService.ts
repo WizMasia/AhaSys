@@ -169,6 +169,198 @@ export async function handleFetchModels(endpoint: string, apiKey?: string) {
   throw new Error("OpenAI 호환 API 또는 Ollama 서버로부터 모델 목록을 조회하지 못했습니다. 엔드포인트 URL을 확인해 주십시오.");
 }
 
+export interface SystemAnalysisResult {
+  responseText: string;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
+}
+
+export interface LLMAdapterPayload {
+  textStr: string;
+  imageB64: string | undefined | null;
+  imagesB64: string[] | undefined | null;
+  systemInstruction: string;
+  customModel: string | undefined | null;
+  customEndpoint: string | undefined | null;
+  customApiKey: string | undefined | null;
+  globalApiKey: string | undefined;
+}
+
+export interface LLMAdapter {
+  analyze(payload: LLMAdapterPayload): Promise<SystemAnalysisResult>;
+}
+
+export class MissingApiKeyError extends Error {
+  code: string;
+  constructor(message: string) {
+    super(message);
+    this.code = 'MISSING_API_KEY';
+  }
+}
+
+export class GeminiAdapter implements LLMAdapter {
+  async analyze(payload: LLMAdapterPayload): Promise<SystemAnalysisResult> {
+    const { textStr, imageB64, imagesB64, systemInstruction, customApiKey, globalApiKey } = payload;
+    const activeApiKey = (typeof customApiKey === 'string' && customApiKey.trim()) ? customApiKey.trim() : globalApiKey;
+
+    if (!activeApiKey) {
+      throw new MissingApiKeyError("정부 RAG 데이터 연결을 처리할 Gemini API Key가 할당되지 않았습니다. 아하시스턴트 AI 정밀 진단을 실행하시려면 상단의 [LLM 설정] 탭으로 이동하시어 API Key를 등록해주십시오.");
+    }
+
+    const dynamicAi = new GoogleGenAI({
+      apiKey: activeApiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+
+    const adText = textStr.trim() ? `"${textStr}"` : `"(텍스트는 별도로 입력하지 않았음. 이미지 내부의 텍스트와 시각 요소를 바탕으로 심사해주십시오.)"`;
+    const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [
+      { text: `아래 내용을 분석해주십시오:\n\n광고 텍스트 원안: ${adText}` }
+    ];
+    
+    // Handle multimodal vision compliance with multi-image support
+    const imagePayloads: string[] = [];
+    if (Array.isArray(imagesB64) && imagesB64.length > 0) {
+      imagesB64.forEach((img) => {
+        if (typeof img === 'string' && img.trim()) {
+          imagePayloads.push(img.trim());
+        }
+      });
+    } else if (imageB64 && typeof imageB64 === 'string' && imageB64.trim()) {
+      imagePayloads.push(imageB64.trim());
+    }
+
+    if (imagePayloads.length > 0) {
+      imagePayloads.forEach((imgData) => {
+        const mime = imgData.match(/data:(.*?);base64,/)?.[1] || "image/png";
+        const cleanBase64 = imgData.replace(/^data:image\/\w+;base64,/, "");
+        parts.push({
+          inlineData: {
+            mimeType: mime,
+            data: cleanBase64
+          }
+        });
+      });
+      parts.push({ text: `[안내] 총 ${imagePayloads.length}개의 광고 이미지가 한 번에 첨부되었습니다. 텍스트 내용뿐만 아니라 각각의 이미지 내부의 시각적 요소(기만적인 원형 그래프 수치 왜곡, 안전성 검증 마크 미인증 무단 도용, 선정적인 상징물, 역사적 참사를 악용하거나 희하화하여 조롱하는 노란 리본이나 전쟁 참상 상업화 등 비주얼 검수 수칙)를 상세 진단하고 위반 시 정밀 감점을 더해주십시오.` });
+    }
+
+    const response = await dynamicAi.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: { parts },
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json"
+      }
+    });
+
+    return {
+      responseText: response.text || "",
+      usageMetadata: response.usageMetadata
+    };
+  }
+}
+
+export class OpenAICompatibleAdapter implements LLMAdapter {
+  async analyze(payload: LLMAdapterPayload): Promise<SystemAnalysisResult> {
+    const { textStr, imageB64, imagesB64, systemInstruction, customModel, customEndpoint, customApiKey } = payload;
+    const endpointBase = customEndpoint && customEndpoint.trim() ? customEndpoint.trim() : "http://localhost:11434/v1";
+    const cleanEndpoint = endpointBase.endsWith('/') ? endpointBase.slice(0, -1) : endpointBase;
+    const chatUrl = `${cleanEndpoint}/chat/completions`;
+    
+    interface TextPart {
+      type: 'text';
+      text: string;
+    }
+
+    interface ImagePart {
+      type: 'image_url';
+      image_url: {
+        url: string;
+      };
+    }
+
+    type MessagePart = TextPart | ImagePart;
+
+    interface ChatMessage {
+      role: 'system' | 'user' | 'assistant';
+      content: string | MessagePart[];
+    }
+
+    const messages: ChatMessage[] = [
+      { role: "system", content: systemInstruction }
+    ];
+
+    const userParts: MessagePart[] = [];
+    userParts.push({ type: "text", text: `아래 내용을 광고 법률 기준에 따라 정밀 분석하여 법규 제재 항목, 벌점, 그리고 준법 대체 텍스트를 JSON 스키마 규격으로 즉시 도출하시오.\n\n광고 텍스트 원안: "${textStr}"` });
+    
+    // Multimodal vision compliance for OpenAI (e.g. Ollama llava / local Vision models)
+    const imagePayloads: string[] = [];
+    if (Array.isArray(imagesB64) && imagesB64.length > 0) {
+      imagesB64.forEach((img) => {
+        if (typeof img === 'string' && img.trim()) imagePayloads.push(img.trim());
+      });
+    } else if (imageB64 && typeof imageB64 === 'string' && imageB64.trim()) {
+      imagePayloads.push(imageB64.trim());
+    }
+
+    imagePayloads.forEach((imgData) => {
+      const cleanBase64 = imgData.startsWith("data:") ? imgData : `data:image/png;base64,${imgData}`;
+      userParts.push({
+        type: "image_url",
+        image_url: {
+          url: cleanBase64
+        }
+      });
+    });
+
+    messages.push({ role: "user", content: userParts });
+
+    const customModelName = customModel && customModel.trim() ? customModel.trim() : "llama3";
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json"
+    };
+    const activeApiKeyVal = (typeof customApiKey === 'string' && customApiKey.trim()) ? customApiKey.trim() : '';
+    if (activeApiKeyVal) {
+      headers["Authorization"] = `Bearer ${activeApiKeyVal}`;
+    }
+
+    const fetchResponse = await fetch(chatUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: customModelName,
+        messages,
+        response_format: { type: "json_object" },
+        temperature: 0.1
+      })
+    });
+
+    if (!fetchResponse.ok) {
+      const errText = await fetchResponse.text();
+      throw new Error(`Endpoint returned status ${fetchResponse.status}: ${errText}`);
+    }
+
+    interface ChatCompletionResponse {
+      choices?: Array<{
+        message?: {
+          content?: string;
+        };
+      }>;
+    }
+
+    const resJson = await fetchResponse.json() as ChatCompletionResponse;
+    const responseText = resJson.choices?.[0]?.message?.content || "";
+
+    return { responseText };
+  }
+}
+
 // Run individual analyze query (text + image)
 export async function performAnalysis(params: {
   text: any;
@@ -327,170 +519,24 @@ ${fewShotContext || '과거 유사 판례 없음.'}
 
   let responseText = "";
 
-  // Adapters: default to server-side Gemini flash using active dynamic client
-  if (adapterType === 'GEMINI' || !adapterType) {
-    if (!activeApiKey) {
-      const err: any = new Error("API Key is missing for GEMINI adapter");
-      err.code = 'MISSING_API_KEY';
-      throw err;
-    }
-    const dynamicAi = new GoogleGenAI({
-      apiKey: activeApiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
+  const adapter: LLMAdapter = (adapterType === 'GEMINI' || !adapterType)
+    ? new GeminiAdapter()
+    : new OpenAICompatibleAdapter();
 
-    const adText = textStr.trim() ? `"${textStr}"` : `"(텍스트는 별도로 입력하지 않았음. 이미지 내부의 텍스트와 시각 요소를 바탕으로 심사해주십시오.)"`;
-    const parts: any[] = [{ text: `아래 내용을 분석해주십시오:\n\n광고 텍스트 원안: ${adText}` }];
-    
-    // Handle multimodal vision compliance with multi-image support
-    const imagePayloads: string[] = [];
-    if (Array.isArray(imagesB64) && imagesB64.length > 0) {
-      imagesB64.forEach((img: any) => {
-        if (typeof img === 'string' && img.trim()) {
-          imagePayloads.push(img.trim());
-        }
-      });
-    } else if (imageB64 && typeof imageB64 === 'string' && imageB64.trim()) {
-      imagePayloads.push(imageB64.trim());
-    }
+  const payload: LLMAdapterPayload = {
+    textStr,
+    imageB64,
+    imagesB64,
+    systemInstruction,
+    customModel,
+    customEndpoint,
+    customApiKey,
+    globalApiKey
+  };
 
-    if (imagePayloads.length > 0) {
-      imagePayloads.forEach((imgData) => {
-        const mime = imgData.match(/data:(.*?);base64,/)?.[1] || "image/png";
-        const cleanBase64 = imgData.replace(/^data:image\/\w+;base64,/, "");
-        parts.push({
-          inlineData: {
-            mimeType: mime,
-            data: cleanBase64
-          }
-        });
-      });
-      parts.push({ text: `[안내] 총 ${imagePayloads.length}개의 광고 이미지가 한 번에 첨부되었습니다. 텍스트 내용뿐만 아니라 각각의 이미지 내부의 시각적 요소(기만적인 원형 그래프 수치 왜곡, 안전성 검증 마크 미인증 무단 도용, 선정적인 상징물, 역사적 참사를 악용하거나 희하화하여 조롱하는 노란 리본이나 전쟁 참상 상업화 등 비주얼 검수 수칙)를 상세 진단하고 위반 시 정밀 감점을 더해주십시오.` });
-    }
-
-    const response = await dynamicAi.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: { parts },
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json"
-      }
-    });
-
-    responseText = response.text || "";
-    usageMetadata = response.usageMetadata;
-  } else {
-    // 💡 Actual OpenAI Compatibility integration layer for Ollama, LM Studio, or others
-    const endpointBase = customEndpoint && customEndpoint.trim() ? customEndpoint.trim() : "http://localhost:11434/v1";
-    const cleanEndpoint = endpointBase.endsWith('/') ? endpointBase.slice(0, -1) : endpointBase;
-    const chatUrl = `${cleanEndpoint}/chat/completions`;
-    
-    const messages: any[] = [
-      { role: "system", content: systemInstruction }
-    ];
-
-    const userParts: any[] = [];
-    userParts.push({ type: "text", text: `아래 내용을 광고 법률 기준에 따라 정밀 분석하여 법규 제재 항목, 벌점, 그리고 준법 대체 텍스트를 JSON 스키마 규격으로 즉시 도출하시오.\n\n광고 텍스트 원안: "${textStr}"` });
-    
-    // Multimodal vision compliance for OpenAI (e.g. Ollama llava / local Vision models)
-    const imagePayloads: string[] = [];
-    if (Array.isArray(imagesB64) && imagesB64.length > 0) {
-      imagesB64.forEach((img: any) => {
-        if (typeof img === 'string' && img.trim()) imagePayloads.push(img.trim());
-      });
-    } else if (imageB64 && typeof imageB64 === 'string' && imageB64.trim()) {
-      imagePayloads.push(imageB64.trim());
-    }
-
-    imagePayloads.forEach((imgData) => {
-      const cleanBase64 = imgData.startsWith("data:") ? imgData : `data:image/png;base64,${imgData}`;
-      userParts.push({
-        type: "image_url",
-        image_url: {
-          url: cleanBase64
-        }
-      });
-    });
-
-    messages.push({ role: "user", content: userParts });
-
-    try {
-      const customModelName = customModel && customModel.trim() ? customModel.trim() : "llama3";
-      const headers: any = {
-        "Content-Type": "application/json"
-      };
-      const activeApiKeyVal = (typeof customApiKey === 'string' && customApiKey.trim()) ? customApiKey.trim() : '';
-      if (activeApiKeyVal) {
-        headers["Authorization"] = `Bearer ${activeApiKeyVal}`;
-      }
-
-      const fetchResponse = await fetch(chatUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          model: customModelName,
-          messages,
-          response_format: { type: "json_object" },
-          temperature: 0.1
-        })
-      });
-
-      if (fetchResponse.ok) {
-        const resJson = await fetchResponse.json();
-        responseText = resJson.choices?.[0]?.message?.content || "";
-      } else {
-        const errText = await fetchResponse.text();
-        throw new Error(`Endpoint returned status ${fetchResponse.status}: ${errText}`);
-      }
-    } catch (err: any) {
-      console.error("Custom Endpoint Call Failed, fallback of lightweight match:", err);
-      // Fallback lightweight regex checking so if the local host isn't currently up, the UI won't completely crash and can still report useful messages
-      const parsed = {
-        productType: textStr.includes("다이어트") ? "건강기능식품" : textStr.includes("피부") ? "기능성 화장품" : "일반 표시광고",
-        targets: "일반 성인",
-        regulatoryDomain: textStr.includes("다이어트") ? "식품표시광고법" : "표시광고법",
-        channels: "인스타그램 피드"
-      };
-
-      const mockViolations = [];
-      let calculatedScore = 100;
-      if (textStr.includes("암") || textStr.includes("치료") || textStr.includes("완치")) {
-        mockViolations.push({
-          id: "v_local_err_1",
-          clause: "식품 등의 표시ㆍ광고에 관한 법률 제8조 제1항",
-          severity: "High" as const,
-          description: `의약품 오인 우려 및 질병 치료 예방 효능 오도 검출 (커스텀 LLM 서버가 연결 취소되었으나 안전 대조기로 자동 분석했습니다: ${err.message})`,
-          deductionPoints: 22,
-          originalFragment: "완치",
-          replacement: "신체 활력의 안정적 건강 밸런스 유지 관리"
-        });
-        calculatedScore -= 22;
-      }
-
-      responseText = JSON.stringify({
-        parsedMeta: parsed,
-        score: Math.max(0, calculatedScore),
-        violations: mockViolations,
-        matchedLaws: retrieved.map(r => ({
-          tier: r.article.tier,
-          title: r.article.clause,
-          description: r.article.text,
-          relevance: r.score
-        })),
-        imageAlternativeProposal: (imageB64 || (Array.isArray(imagesB64) && imagesB64.length > 0)) ? {
-          detectedVisualCopys: ["임의의 감지된 시각 텍스트 (다중 이미지 분석)"],
-          visualViolations: ["이미지 상의 사설 공정 인증 도안 임의 삽입 의심"],
-          visualRemediationSteps: ["이미지 내 사설 인증 도안을 일반 공인 규격 설명 문안으로 우회 전환"],
-          alternativeVisualDraft: "배너 좌측 하단의 '1위 인증 마크'를 자사 테스트 완료 고지 안내문구로 대체 교체 권장."
-        } : null,
-        localLlmError: `지정한 로컬 주소(${customEndpoint})에 실제 연결할 수 없습니다 (원인: ${err.message}). 보안 컨테이너 가상 환경에서는 사용자의 로컬 루프백 네트워크(127.0.0.1)에 TCP 패킷을 다이렉트로 전송할 수 있는 경로가 차단되어 있습니다. 로컬 Gemma, Ollama 등을 연동하여 정밀 분석을 실행하시려면 상단의 [설정] 혹은 [Export ZIP] 메뉴를 이용해 본 앱 코드를 다운로드하고, 본인 기기 로컬에서 실행(npm run dev)하시기 바랍니다. 현재는 자체 탑재된 준법 검사 매트릭스로 임시 진단 보고서를 도출했습니다.`
-      });
-    }
-  }
+  const adapterResult = await adapter.analyze(payload);
+  responseText = adapterResult.responseText;
+  usageMetadata = adapterResult.usageMetadata;
 
   // Parse the returned response properly
   let finalResultData: any;

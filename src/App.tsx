@@ -1072,7 +1072,7 @@ ${lawsText}
 
       {/* Main Structural Navigation Bar */}
       <nav className={`sticky top-0 z-40 border-b backdrop-blur-md no-print ${darkMode ? 'bg-[#0b0f19]/90 border-slate-800/80' : 'bg-white/95 border-slate-200 shadow-sm'}`}>
-        <div className="max-w-7xl mx-auto px-6 h-18 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 md:py-0 md:h-18 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-amber-500/20 shrink-0">
               <ShieldCheck className="w-6 h-6" />
@@ -1087,12 +1087,12 @@ ${lawsText}
           </div>
 
           {/* Navigation Controls */}
-          <div className="flex items-center gap-2">
-            <div className={`p-1 rounded-xl flex gap-1 ${darkMode ? 'bg-[#121929]' : 'bg-slate-100'}`}>
+          <div className="flex items-center gap-2 max-w-full overflow-x-auto no-scrollbar py-1 shrink-0">
+            <div className={`p-1 rounded-xl flex gap-1 overflow-x-auto no-scrollbar shrink-0 ${darkMode ? 'bg-[#121929]' : 'bg-slate-100'}`}>
               <button
                 id="nav_review"
                 onClick={() => setActiveTab('review')}
-                className={`py-1.5 px-3 rounded-md text-xs font-black cursor-pointer transition-all flex items-center gap-1 ${activeTab === 'review' ? (darkMode ? 'bg-amber-500 text-slate-950 shadow' : 'bg-amber-500 text-slate-950 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')}`}
+                className={`py-1.5 px-3 rounded-md text-xs font-black cursor-pointer transition-all flex items-center gap-1 shrink-0 ${activeTab === 'review' ? (darkMode ? 'bg-amber-500 text-slate-950 shadow' : 'bg-amber-500 text-slate-950 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')}`}
               >
                 <Gauge className="w-3.5 h-3.5" />
                 <span>자율 심사</span>
@@ -1100,7 +1100,7 @@ ${lawsText}
               <button
                 id="nav_about"
                 onClick={() => setActiveTab('about')}
-                className={`py-1.5 px-3 rounded-md text-xs font-black cursor-pointer transition-all flex items-center gap-1 ${activeTab === 'about' ? (darkMode ? 'bg-amber-500 text-slate-950 shadow' : 'bg-amber-500 text-slate-950 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')}`}
+                className={`py-1.5 px-3 rounded-md text-xs font-black cursor-pointer transition-all flex items-center gap-1 shrink-0 ${activeTab === 'about' ? (darkMode ? 'bg-amber-500 text-slate-950 shadow' : 'bg-amber-500 text-slate-950 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')}`}
               >
                 <Info className="w-3.5 h-3.5" />
                 <span>설명서</span>
@@ -1108,7 +1108,7 @@ ${lawsText}
               <button
                 id="nav_history"
                 onClick={() => setActiveTab('history')}
-                className={`py-1.5 px-3 rounded-md text-xs font-black cursor-pointer transition-all flex items-center gap-1 ${activeTab === 'history' ? (darkMode ? 'bg-amber-500 text-slate-950 shadow' : 'bg-amber-500 text-slate-950 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')}`}
+                className={`py-1.5 px-3 rounded-md text-xs font-black cursor-pointer transition-all flex items-center gap-1 shrink-0 ${activeTab === 'history' ? (darkMode ? 'bg-amber-500 text-slate-950 shadow' : 'bg-amber-500 text-slate-950 shadow') : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')}`}
               >
                 <History className="w-3.5 h-3.5" />
                 <span>지식 누적</span>
@@ -1116,14 +1116,14 @@ ${lawsText}
               <button
                 id="nav_settings"
                 onClick={() => setActiveTab('settings')}
-                className={`py-1.5 px-3 rounded-md text-xs font-black cursor-pointer transition-all flex items-center gap-1 ${activeTab === 'settings' ? (darkMode ? 'bg-indigo-600 text-white shadow' : 'bg-indigo-600 text-white shadow') : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')}`}
+                className={`py-1.5 px-3 rounded-md text-xs font-black cursor-pointer transition-all flex items-center gap-1 shrink-0 ${activeTab === 'settings' ? (darkMode ? 'bg-indigo-600 text-white shadow' : 'bg-indigo-600 text-white shadow') : (darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')}`}
               >
                 <Settings className="w-3.5 h-3.5" />
                 <span>LLM 설정</span>
               </button>
             </div>
 
-            <div className="w-px h-6 bg-slate-705 mx-1" />
+            <div className="w-px h-6 bg-slate-705 mx-1 shrink-0" />
 
             {/* GitHub Repository Link */}
             <a
@@ -1132,7 +1132,7 @@ ${lawsText}
               target="_blank"
               rel="noopener noreferrer"
               title="GitHub 저장소 바로가기 (Go to GitHub Repository)"
-              className={`p-2 rounded-lg border transition-all cursor-pointer flex items-center justify-center ${darkMode ? 'border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700' : 'border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-slate-900 hover:border-slate-300'}`}
+              className={`p-2 rounded-lg border transition-all cursor-pointer flex items-center justify-center shrink-0 ${darkMode ? 'border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700' : 'border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-slate-900 hover:border-slate-300'}`}
             >
               <Github className="w-4 h-4" />
             </a>
@@ -1141,7 +1141,7 @@ ${lawsText}
             <button
               id="theme_toggle"
               onClick={() => setDarkMode(!darkMode)}
-              className={`p-2 rounded-lg border transition-colors cursor-pointer ${darkMode ? 'border-slate-800 hover:bg-slate-800 text-amber-400' : 'border-slate-200 hover:bg-slate-100 text-indigo-600'}`}
+              className={`p-2 rounded-lg border transition-colors cursor-pointer shrink-0 ${darkMode ? 'border-slate-800 hover:bg-slate-800 text-amber-400' : 'border-slate-200 hover:bg-slate-100 text-indigo-600'}`}
             >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -1446,26 +1446,26 @@ ${lawsText}
                   <div className="space-y-6">
 
                     {/* Export and Actions Bar (Print/Copy) */}
-                    <div className="flex items-center justify-between no-print border-b border-slate-800/20 pb-2">
-                    <span className="text-xs font-extrabold text-slate-500">📄 심의 결과보고서 인쇄 및 유통 도구:</span>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleCopyMarkdown}
-                        className="py-2 px-4 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/25 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
-                      >
-                        {copied ? <Check className="w-4 h-4 text-emerald-400 animate-bounce" /> : <Copy className="w-4 h-4" />}
-                        <span>{copied ? '클립보드 복사완료!' : 'Markdown 리포트 복사'}</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => setShowPrintModal(true)}
-                        className="py-2 px-4 rounded-xl border border-amber-500/30 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 animate-pulse"
-                      >
-                        <Printer className="w-4 h-4" />
-                        <span>새 창에서 보고서 인쇄 및 PDF 저장</span>
-                      </button>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between no-print border-b border-slate-800/20 pb-4 md:pb-2 gap-3">
+                      <span className="text-xs font-extrabold text-slate-500">📄 심의 결과보고서 인쇄 및 유통 도구:</span>
+                      <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                        <button
+                          onClick={handleCopyMarkdown}
+                          className="w-full sm:w-auto py-2 px-4 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/25 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                        >
+                          {copied ? <Check className="w-4 h-4 text-emerald-400 animate-bounce" /> : <Copy className="w-4 h-4" />}
+                          <span>{copied ? '클립보드 복사완료!' : 'Markdown 리포트 복사'}</span>
+                        </button>
+                        
+                        <button
+                          onClick={() => setShowPrintModal(true)}
+                          className="w-full sm:w-auto py-2 px-4 rounded-xl border border-amber-500/30 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95 animate-pulse"
+                        >
+                          <Printer className="w-4 h-4" />
+                          <span>새 창에서 보고서 인쇄 및 PDF 저장</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
                   {/* Csat Grade Card Dashboard Indicator */}
                   {(() => {
@@ -1593,7 +1593,7 @@ ${lawsText}
                         <h4 className="font-bold text-xs uppercase tracking-wide text-indigo-300">1단계: 자율 가중 문맥 추론 메타포팅 (Context Analysis)</h4>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                         <div className={`p-3 rounded-xl border ${darkMode ? 'bg-slate-950/60 border-slate-850' : 'bg-slate-50 border-slate-150'}`}>
                           <span className="block text-[9px] text-slate-500 uppercase font-bold">Product Type (물품)</span>
                           <span className="font-extrabold text-xs text-slate-200">{analysisResult.parsedMeta.productType || '일반 광고'}</span>
@@ -1851,7 +1851,7 @@ ${lawsText}
               <h4 className={`font-black text-sm uppercase tracking-wider ${darkMode ? 'text-slate-400' : 'text-slate-950 font-black'}`}>1. 기저 추론 엔진 선정</h4>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <button
                 type="button"
                 id="settings_adapter_tab_gemini"
@@ -1933,7 +1933,7 @@ ${lawsText}
                   <span className="font-black text-amber-400">🔌 로컬 엔진 기본 호환 서비스 선택:</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-2">
                   <button
                     type="button"
                     onClick={() => applyLocalPreset("ollama")}
@@ -2034,7 +2034,7 @@ ${lawsText}
                   <span className="font-black text-indigo-400">🌐 클라우드 외부 서비스 프리셋 선택:</span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2.5 pb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pb-2">
                   <button
                     type="button"
                     onClick={() => applyOtherPreset("openai")}
@@ -2413,7 +2413,7 @@ ${lawsText}
 
             {/* Quick stats grid scoreboard */}
             {benchmarkStats && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div className={`p-4 rounded-2xl border text-center ${darkMode ? 'bg-[#0f1524] border-slate-800' : 'bg-white border-slate-200'}`}>
                   <span className="block text-[10px] text-slate-500 uppercase font-bold mb-1">합격 성공률 (Passing Rate)</span>
                   <span className="text-2xl font-black text-emerald-400">{Math.round((benchmarkStats.passed / benchmarkStats.total) * 100)}%</span>
@@ -2804,12 +2804,12 @@ ${lawsText}
 
           {/* Real A4 Paper Visual Template Sheet */}
           <div 
-            className="w-full max-w-[210mm] min-h-[297mm] bg-white text-slate-950 p-[15mm] shadow-2xl relative border border-slate-300 flex flex-col justify-between font-sans text-xs select-text antialiased leading-relaxed printable-report"
+            className="w-full max-w-[210mm] min-h-[297mm] bg-white text-slate-950 p-6 sm:p-[15mm] shadow-2xl relative border border-slate-300 flex flex-col justify-between font-sans text-xs select-text antialiased leading-relaxed printable-report"
             style={{ pageBreakInside: 'avoid' }}
           >
             {/* Header Stamp and Badge decorative elements */}
             <div className="border-b-2 border-slate-900 pb-4 mb-4">
-              <div className="flex justify-between items-start gap-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div className="text-left space-y-1">
                   <span className="text-[9px] font-black bg-indigo-600 text-white px-2 py-0.5 rounded uppercase tracking-wider">OFFICIAL AD COMPLIANCE DOSSIER</span>
                   <h1 className="text-xl font-extrabold tracking-tight text-slate-950 font-serif mt-1">광고 법률 무결성 종합 준법 자문보고서</h1>
@@ -2874,7 +2874,7 @@ ${lawsText}
               <div className="space-y-1.5">
                 <span className="text-[9.5px] font-black bg-slate-900 text-white px-2 py-0.5 rounded">2. 심의 검수 대상 원안 데이터</span>
                 <div className="p-3 border border-slate-200 rounded-lg bg-slate-50 space-y-2">
-                  <div className="grid grid-cols-2 gap-2 text-[9.5px] text-slate-700 leading-tight">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[9.5px] text-slate-700 leading-tight">
                     <div>
                       <span className="font-bold text-slate-500 block">추론 제품 분류군:</span>
                       <span className="font-extrabold text-slate-900">{analysisResult.parsedMeta.productType}</span>
@@ -2975,7 +2975,7 @@ ${lawsText}
             </div>
 
             {/* Footer space */}
-            <div className="pt-4 border-t border-slate-300 mt-4 text-[9px] flex justify-between items-end">
+            <div className="pt-4 border-t border-slate-300 mt-4 text-[9px] flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
               <div className="space-y-0.5 text-left text-slate-500">
                 <p className="font-extrabold text-slate-800">아하시스턴트 AI 자율 규제 필터 컴플라이언스 센터</p>
                 <p className="text-[8px]">본 법무 인증 보고서는 공정거래위원회 심사관 규정 및 주요 특별고시 근거 기준을 토대로 자율 지식 RAG을 결합해 도출되었습니다.</p>

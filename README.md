@@ -113,10 +113,71 @@ docker run -d \
 루트 폴더에 `.env` 파일을 생성하고 `GEMINI_API_KEY`를 작성한 뒤 다음 명령어로 빌드 및 백그라운드 구동을 실행합니다.
 ```bash
 # 컴포즈 빌드 및 데몬 실행
-docker compose up --build -d
+  docker compose up --build -d
 ```
 
 실행 완료 후 브라우저에서 `http://localhost:3000`으로 바로 접속할 수 있습니다.
+
+---
+
+## 🏗️ 시스템 아키텍처 및 앱 설계도 (System Architecture Diagram)
+
+aHaSys는 프론트엔드 모듈성 극대화 및 백엔드 다형성 결합을 특징으로 하는 엔터프라이즈 레벨의 정밀 준법 감시 아키텍처로 전면 리팩터링되었습니다.
+
+```text
+       [ Client Side (React 19 + TypeScript) ]
+┌─────────────────────────────────────────────────────┐
+│                   App (Main Layout)                 │
+└──────────┬───────────────────────────────┬──────────┘
+           │                               │
+    [ AppProvider ] Context         [ apiClient ] Layer
+┌─────────────────────────────────┐ ┌─────────────────┐
+│ - darkMode / fontSize           │ │ - analyze()     │
+│ - adapterType / customModel     │ │ - getHistory()  │
+│ - localPreset / otherPreset     │ │ - runBenchmark()│
+└──────────┬──────────────────────┘ └────────┬────────┘
+           │                                 │
+           ▼ (Consume State & UI)            ▼ (Consume APIs)
+┌─────────────────────────────────────────────────────┐
+│ ✏️ ReviewTab    | 📊 BenchmarkTab   | Timeline 저장소 │
+│ SettingsTab    | 📜 AboutTab                          │
+└─────────────────────────────────────────────────────┘
+                                  │
+                                  ▼ (HTTP Restful Proxy)
+       [ Server Side (Express.js Backend + TSX) ]
+┌─────────────────────────────────────────────────────┐
+│                   server.ts (Entrypoint)            │
+└──────────────────────────┬──────────────────────────┘
+                           ▼ (Mount API Router)
+┌─────────────────────────────────────────────────────┐
+│                 server/routes/api.ts                │
+└──────────────────────────┬──────────────────────────┘
+                           ▼ (Business Logic)
+┌─────────────────────────────────────────────────────┐
+│             server/services/llmService.ts           │
+└──────┬────────────────────┬────────────────────┬────┘
+       │                    │                    │
+       ▼ (RAG guidelines)   ▼ (Prompts)          ▼ (Adapter Pattern)
+┌──────────────┐    ┌───────────────┐   ┌──────────────────┐
+│ regulatory   │    │ compliance    │   │  LLMAdapter      │
+│ Library.ts   │    │ Prompt.ts     │   ├──────────────────┤
+│ (20k Cases)  │    │ (Rules/Scale) │   │ ├─ GeminiAdapter │
+└──────────────┘    └───────────────┘   │ └─ OpenAICompatible│
+                                        └──────────────────┘
+```
+
+### 1) 클라이언트 사이드 (Frontend Decoupling)
+* **단일 책임의 5대 컴포넌트 탭 분리**: 수천 줄의 `App.tsx` 코드를 `ReviewTab`, `SettingsTab`, `BenchmarkTab`, `HistoryTab`, `AboutTab`으로 완전히 기능 격리하였습니다.
+* **AppContext API (`AppProvider`)**: `darkMode`, `fontSize`와 같은 테마 구성 및 LLM 환경 설정을 Props Drilling(기존 40여 개 Props 인라인 주입) 없이 독립적인 컨텍스트 전파로 정밀 해소했습니다.
+* **apiClient 추상화 레이어 (`src/services/api.ts`)**: 프론트엔드의 모든 직접 fetch 연동 경로를 캡슐화하여 유지보수성을 극대화하였습니다.
+
+### 2) 서버 사이드 (Backend Clean Architecture)
+* **다형성 LLM 어댑터 패턴 (Adapter Pattern)**: Gemini API SDK와 커스텀/Ollama 호환 API 어댑터 구조를 `LLMAdapter` 인터페이스 및 구체적 구현 클래스로 구조화하여 신규 AI 엔진 플러그인 연동의 확장성을 극대화하였습니다.
+* **RAG 기반 20,000-Case 메가스케일 벤치마크**:
+  * 백엔드 구동 시 20,000건의 고유 준법 심의 테스트 케이스를 수식 수학으로 메모리 부하 없이 동적 생산합니다.
+  * 회귀 검정 실행 시 전체 20,000건 중 **무작위 100건(RNG 100)**을 추출하여 RAG 판정을 구동합니다.
+  * 대용량 분석 결과는 `/api/benchmark/download`를 통해 단일 JSON 팩으로 통째로 다운로드할 수 있습니다.
+* **프롬프트 격리**: 거대 한글 시스템 지시문 및 스키마 명세를 `server/prompts/compliancePrompt.ts`로 전면 격리하였습니다.
 
 ---
 

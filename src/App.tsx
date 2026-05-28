@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 import { Stage, LLMType, LLMConfig, SystemAnalysisResult, Violation, PastCase, BenchmarkCase } from './types';
-import { useLLMConfig } from './hooks/useLLMConfig';
+import { useApp } from './contexts/AppContext';
 import { apiClient } from './services/api';
 import { SettingsTab } from './components/SettingsTab';
 import { AboutTab } from './components/AboutTab';
@@ -28,11 +28,10 @@ import { HistoryTab } from './components/HistoryTab';
 import { ReviewTab } from './components/ReviewTab';
 
 export default function App() {
-  // Theme & Layout settings
-  const [darkMode, setDarkMode] = useState<boolean>(true);
+  const llm = useApp();
+  const { darkMode, setDarkMode, fontSize, setFontSize, activeTab, setActiveTab } = llm;
+
   const [copied, setCopied] = useState<boolean>(false);
-  const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg'>('md'); // font sizing preference (Small, Medium, Large)
-  const [activeTab, setActiveTab] = useState<'review' | 'about' | 'benchmark' | 'history' | 'settings'>('review');
   const [inputMode, setInputMode] = useState<'text' | 'url'>('text');
 
   // Analysis inputs
@@ -42,9 +41,6 @@ export default function App() {
   const [uploadedImages, setUploadedImages] = useState<{file: File, b64: string}[]>([]);
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
-
-  // Hook LLM configuration settings
-  const llm = useLLMConfig();
 
   // Result States
   const [loading, setLoading] = useState<boolean>(false);
@@ -840,13 +836,10 @@ export default function App() {
         {/* TAB 1: REALTIME REVIEW INTERFACE */}
         {activeTab === 'review' && (
           <ReviewTab
-            darkMode={darkMode}
             errorText={errorText}
             setErrorText={setErrorText}
             showKeyAlert={showKeyAlert}
             setShowKeyAlert={setShowKeyAlert}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
             inputMode={inputMode}
             setInputMode={setInputMode}
             inputText={inputText}
@@ -871,7 +864,6 @@ export default function App() {
             handleCopyMarkdown={handleCopyMarkdown}
             copied={copied}
             setShowPrintModal={setShowPrintModal}
-            fontSize={fontSize}
             getCsatGradeInfo={getCsatGradeInfo}
             getScoreColor={getScoreColor}
             getMarkdownReportString={getMarkdownReportString}
@@ -882,38 +874,17 @@ export default function App() {
 
         {/* TAB 1.7: LLM CONFIGURE & API KEYS SETTINGS TAB */}
         {activeTab === 'settings' && (
-          <SettingsTab
-            darkMode={darkMode}
-            draftAdapterType={llm.draftAdapterType}
-            setDraftAdapterType={llm.setDraftAdapterType}
-            draftCustomModel={llm.draftCustomModel}
-            setDraftCustomModel={llm.setDraftCustomModel}
-            draftCustomEndpoint={llm.draftCustomEndpoint}
-            setDraftCustomEndpoint={llm.setDraftCustomEndpoint}
-            draftCustomApiKey={llm.draftCustomApiKey}
-            setDraftCustomApiKey={llm.setDraftCustomApiKey}
-            localPreset={llm.localPreset}
-            otherPreset={llm.otherPreset}
-            fetchedModels={llm.fetchedModels}
-            fetchModelsLoading={llm.fetchModelsLoading}
-            fetchModelsError={llm.fetchModelsError}
-            settingsSavedSuccess={llm.settingsSavedSuccess}
-            applyLocalPreset={llm.applyLocalPreset}
-            applyOtherPreset={llm.applyOtherPreset}
-            handleFetchModels={llm.handleFetchModels}
-            handleSaveSettings={llm.handleSaveSettings}
-          />
+          <SettingsTab />
         )}
 
         {/* TAB 1.5: APP DESCRIPTION & GUIDELINES TAB */}
         {activeTab === 'about' && (
-          <AboutTab darkMode={darkMode} />
+          <AboutTab />
         )}
 
         {/* TAB 2: BENCHMARK SUITE */}
         {activeTab === 'benchmark' && (
           <BenchmarkTab
-            darkMode={darkMode}
             benchmarkRunning={benchmarkRunning}
             benchmarkStats={benchmarkStats}
             benchmarkCases={benchmarkCases}
@@ -924,7 +895,6 @@ export default function App() {
         {/* TAB 3: KNOWLEDGE TIMELINE */}
         {activeTab === 'history' && (
           <HistoryTab
-            darkMode={darkMode}
             historyItems={historyItems}
             historySearchQuery={historySearchQuery}
             setHistorySearchQuery={setHistorySearchQuery}

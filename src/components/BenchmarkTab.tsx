@@ -10,9 +10,9 @@ import {
   FileText 
 } from 'lucide-react';
 import { BenchmarkCase } from '../types';
+import { useApp } from '../contexts/AppContext';
 
 interface BenchmarkTabProps {
-  darkMode: boolean;
   benchmarkRunning: boolean;
   benchmarkStats: {
     passed: number;
@@ -25,12 +25,12 @@ interface BenchmarkTabProps {
 }
 
 export function BenchmarkTab({
-  darkMode,
   benchmarkRunning,
   benchmarkStats,
   benchmarkCases,
   triggerBenchmark
 }: BenchmarkTabProps) {
+  const { darkMode } = useApp();
   return (
     <div className="space-y-8">
       

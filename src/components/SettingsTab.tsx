@@ -12,50 +12,31 @@ import {
   Check 
 } from 'lucide-react';
 import { LLMType } from '../types';
+import { useApp } from '../contexts/AppContext';
 
-interface SettingsTabProps {
-  darkMode: boolean;
-  draftAdapterType: LLMType;
-  setDraftAdapterType: (type: LLMType) => void;
-  draftCustomModel: string;
-  setDraftCustomModel: (model: string) => void;
-  draftCustomEndpoint: string;
-  setDraftCustomEndpoint: (endpoint: string) => void;
-  draftCustomApiKey: string;
-  setDraftCustomApiKey: (key: string) => void;
-  localPreset: string;
-  otherPreset: string;
-  fetchedModels: string[];
-  fetchModelsLoading: boolean;
-  fetchModelsError: string | null;
-  settingsSavedSuccess: boolean;
-  applyLocalPreset: (preset: "ollama" | "lmstudio") => void;
-  applyOtherPreset: (preset: "openai" | "openrouter" | "custom") => void;
-  handleFetchModels: () => Promise<void>;
-  handleSaveSettings: () => void;
-}
+export function SettingsTab() {
+  const {
+    darkMode,
+    draftAdapterType,
+    setDraftAdapterType,
+    draftCustomModel,
+    setDraftCustomModel,
+    draftCustomEndpoint,
+    setDraftCustomEndpoint,
+    draftCustomApiKey,
+    setDraftCustomApiKey,
+    localPreset,
+    otherPreset,
+    fetchedModels,
+    fetchModelsLoading,
+    fetchModelsError,
+    settingsSavedSuccess,
+    applyLocalPreset,
+    applyOtherPreset,
+    handleFetchModels,
+    handleSaveSettings
+  } = useApp();
 
-export function SettingsTab({
-  darkMode,
-  draftAdapterType,
-  setDraftAdapterType,
-  draftCustomModel,
-  setDraftCustomModel,
-  draftCustomEndpoint,
-  setDraftCustomEndpoint,
-  draftCustomApiKey,
-  setDraftCustomApiKey,
-  localPreset,
-  otherPreset,
-  fetchedModels,
-  fetchModelsLoading,
-  fetchModelsError,
-  settingsSavedSuccess,
-  applyLocalPreset,
-  applyOtherPreset,
-  handleFetchModels,
-  handleSaveSettings
-}: SettingsTabProps) {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       

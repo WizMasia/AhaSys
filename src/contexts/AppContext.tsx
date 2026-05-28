@@ -164,7 +164,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setDraftCustomModel('gpt-4o-mini');
     } else if (preset === 'openrouter') {
       setDraftCustomEndpoint('https://openrouter.ai/api/v1');
-      setDraftCustomModel('google/gemini-2.5-flash');
+      setDraftCustomModel('openrouter/free');
     } else {
       setDraftCustomEndpoint('');
       setDraftCustomModel('');

@@ -60,6 +60,7 @@ export default function App() {
   const [historyVerdictFilter, setHistoryVerdictFilter] = useState<string>("all");
 
   // Benchmarking states
+  const [showBenchmarkTab, setShowBenchmarkTab] = useState<boolean>(false);
   const [benchmarkCases, setBenchmarkCases] = useState<BenchmarkCase[]>([]);
   const [benchmarkRunning, setBenchmarkRunning] = useState<boolean>(false);
   const [benchmarkStats, setBenchmarkStats] = useState<{
@@ -73,6 +74,11 @@ export default function App() {
   useEffect(() => {
     fetchHistory();
     fetchBenchmarkCases();
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('benchmark') === 'true' || localStorage.getItem('SHOW_BENCHMARK') === 'true') {
+      setShowBenchmarkTab(true);
+    }
   }, [activeTab]);
 
   const fetchHistory = async () => {
@@ -763,13 +769,15 @@ export default function App() {
             <span>✏️ 실시간 심의</span>
           </button>
           
-          <button
-            onClick={() => { setActiveTab('benchmark'); setErrorText(null); }}
-            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'benchmark' ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'text-slate-400 hover:text-slate-250 border border-transparent'}`}
-          >
-            <Gauge className="w-3.5 h-3.5" />
-            <span>📊 1,000-Case 검정 대시보드</span>
-          </button>
+          {showBenchmarkTab && (
+            <button
+              onClick={() => { setActiveTab('benchmark'); setErrorText(null); }}
+              className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'benchmark' ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'text-slate-400 hover:text-slate-250 border border-transparent'}`}
+            >
+              <Gauge className="w-3.5 h-3.5" />
+              <span>📊 1,000-Case 검정 대시보드</span>
+            </button>
+          )}
           
           <button
             onClick={() => { setActiveTab('history'); setErrorText(null); }}
@@ -883,7 +891,7 @@ export default function App() {
         )}
 
         {/* TAB 2: BENCHMARK SUITE */}
-        {activeTab === 'benchmark' && (
+        {activeTab === 'benchmark' && showBenchmarkTab && (
           <BenchmarkTab
             benchmarkRunning={benchmarkRunning}
             benchmarkStats={benchmarkStats}

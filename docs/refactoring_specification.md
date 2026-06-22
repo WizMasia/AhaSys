@@ -101,3 +101,19 @@ interface UseLLMConfigReturn {
 1. **타입 안전성**: `@/src/types.ts`에 선언된 공유 모델 유형을 준수하며, `any`나 `ts-ignore` 등을 금지합니다.
 2. **스타일 일관성**: Tailwind CSS 클래스 조합과 Lucide React 아이콘들을 손상시키지 않고 그대로 유지합니다.
 3. **단위 검증**: 컴포넌트를 하나씩 분리할 때마다 Vite 개발 서버 및 빌드 컴파일을 시도하여 LSP Diagnostics를 점검합니다.
+
+---
+
+## 4. Phase B: 클린 코드, 재사용성 및 매직 넘버/하드코딩 제거 명세
+
+코드베이스의 신뢰성과 유지보수성을 극대화하기 위해 하드코딩된 값과 매직 넘버를 제거하고, 클린 코드 원칙을 적용하여 중복 로직을 리팩터링합니다.
+
+### ① 매직 넘버 및 하드코딩 제거 (Constants Extraction)
+* **LLM 기본 설정 상수화**: `server/services/llmService.ts` 및 `src/contexts/AppContext.tsx` 내에 산재한 기본 모델 이름(`gemini-3.5-flash`, `gemma2:9b`), 기본 포트/엔드포인트 주소(`http://localhost:11434/v1` 등)를 하나의 상수 파일 또는 상단 상수 정의로 격리합니다.
+* **RAG 기준 스코어 및 벌점 행렬 상수화**: RAG 가중치Hard Filter 기준(`80.0`), 기본 만점(`100`), 재난오용 고정 감점(`-50`) 등을 명시적인 상수로 정의합니다.
+* **HTTP 통신 관련 설정 상수화**: 파일 크기 제한(`50mb`), 기본 포트(`3000`), 타임아웃 등의 상수를 추출합니다.
+
+### ② 클린 코드 및 재사용성 정비 (Code Reuse)
+* **JSON 파싱 복구 유틸리티화**: `llmService.ts`와 `api.ts` 등에서 마크다운 백틱(```json ... ```) 제거 및 중괄호 범위 추출을 반복 수행하는 JSON 복구 로직을 독립 함수 `repairJsonString(text)`으로 분리하여 재사용합니다.
+* **유사성 및 가중치 계산 추상화**: RAG 유사도를 구하는 수학적/거리 계산 로직(`calculateSimilarity`, `retrieveGuidelines`)의 가독성을 높이고, 유사 가중치 매핑 구조를 단순화합니다.
+* **중복적인 기본 액션 플랜(SOP) 자동 빌더화**: 5단계 위기 대처 계획 수립 로직을 지저분한 하드코딩이 아닌, 위반 객체(`Violation`) 정보를 매개변수로 받아 포맷팅해 주는 순수 유틸리티 함수 `generateDefaultActionPlan(violation, matchingLaw)`로 분리합니다.

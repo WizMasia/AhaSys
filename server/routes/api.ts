@@ -32,7 +32,7 @@ router.get('/history', (req, res) => {
 router.post('/proxy/models', async (req, res) => {
   const { endpoint, apiKey } = req.body;
   if (!endpoint) {
-    return res.status(100).json({ error: true, message: "엔드포인트 주소가 제공되지 않았습니다." });
+    return res.status(400).json({ error: true, message: "엔드포인트 주소가 제공되지 않았습니다." });
   }
 
   try {

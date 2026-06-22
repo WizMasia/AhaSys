@@ -545,22 +545,17 @@ export function ReviewTab({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className={`p-3 rounded-xl border ${darkMode ? 'bg-slate-950/60 border-slate-850' : 'bg-slate-50 border-slate-150'}`}>
-                    <span className="block text-[9px] text-slate-500 uppercase font-bold">Product Type (물품)</span>
-                    <span className="font-extrabold text-xs text-slate-200">{analysisResult.parsedMeta.productType || '일반 광고'}</span>
-                  </div>
-                  <div className={`p-3 rounded-xl border ${darkMode ? 'bg-slate-950/60 border-slate-850' : 'bg-slate-50 border-slate-150'}`}>
-                    <span className="block text-[9px] text-slate-500 uppercase font-bold">Target Demographic (대상)</span>
-                    <span className="font-extrabold text-xs text-slate-200">{analysisResult.parsedMeta.targets || '일반 성인'}</span>
-                  </div>
-                  <div className={`p-3 rounded-xl border ${darkMode ? 'bg-slate-950/60 border-slate-850' : 'bg-slate-50 border-slate-150'}`}>
-                    <span className="block text-[9px] text-slate-500 uppercase font-bold">Regulatory Domain (규정)</span>
-                    <span className="font-extrabold text-xs text-orange-400">{analysisResult.parsedMeta.regulatoryDomain || '공정거래규정'}</span>
-                  </div>
-                  <div className={`p-3 rounded-xl border ${darkMode ? 'bg-slate-950/60 border-slate-850' : 'bg-slate-50 border-slate-150'}`}>
-                    <span className="block text-[9px] text-slate-500 uppercase font-bold">Marketing Channel (매체)</span>
-                    <span className="font-extrabold text-xs text-slate-200">{analysisResult.parsedMeta.channels || '소셜 네트워크'}</span>
-                  </div>
+                  {[
+                    { label: "Product Type (물품)", value: analysisResult.parsedMeta.productType || '일반 광고' },
+                    { label: "Target Demographic (대상)", value: analysisResult.parsedMeta.targets || '일반 성인' },
+                    { label: "Regulatory Domain (규정)", value: analysisResult.parsedMeta.regulatoryDomain || '공정거래규정', colorClass: "text-orange-400" },
+                    { label: "Marketing Channel (매체)", value: analysisResult.parsedMeta.channels || '소셜 네트워크' }
+                  ].map((card, idx) => (
+                    <div key={idx} className={`p-3 rounded-xl border ${darkMode ? 'bg-slate-950/60 border-slate-850' : 'bg-slate-50 border-slate-150'}`}>
+                      <span className="block text-[9px] text-slate-500 uppercase font-bold">{card.label}</span>
+                      <span className={`font-extrabold text-xs ${card.colorClass || 'text-slate-200'}`}>{card.value}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 

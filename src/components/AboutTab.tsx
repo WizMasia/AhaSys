@@ -43,10 +43,10 @@ export function AboutTab() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-[#0f1524] border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
           <div className="flex items-center gap-2 mb-3 text-amber-500 font-extrabold text-sm">
-            <span>⚖️ 5대 영역 법률 위계 매핑</span>
+            <span>⚖️ 5대 에이전트 병렬 최적화 라우팅</span>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            표시광고법 상의 속임수 배제 원칙을 최우선으로 하며, 개별 영역법(식품표시광고법, 화장품법, 의료법, 금융소비자보호법) 및 재난안전법(참사 오용 제어)의 특별법 규격 조항들을 지능적으로 우선 매핑해 법적 위반 지점을 구체적으로 지목합니다.
+            중앙 조정 에이전트(Orchestrator)가 1차 스캔하여 필요한 분야만 활성화합니다. 실정법률(LEGAL)은 상시 전문 검수하며, 비법률 영역(SOCIAL, ESG, PRIVACY, YOUTH)은 관련 핵심 구절만 분할 전송(Segment Routing)하여 정확성과 토큰 효율성을 극대화합니다.
           </p>
         </div>
 

@@ -7,6 +7,44 @@ import { GoogleGenAI } from '@google/genai';
 import { LawArticle, REGULATORY_LIBRARY } from '../db/regulatoryLibrary';
 import { getSystemInstruction, getSocialControversyInstruction, getEsgGreenwashingInstruction, getPrivacyProtectionInstruction, getYouthProtectionInstruction, getOrchestratorRoutingInstruction } from '../prompts/compliancePrompt';
 
+// Constants
+export const BASE_SCORE = 100;
+export const RAG_HARD_FILTER_SCORE = 80.0;
+export const DEFAULT_PRODUCT_TYPE = "일반광고";
+export const DEFAULT_TARGETS = "일반 대중";
+export const DEFAULT_REGULATORY_DOMAIN = "표시광고법";
+export const DEFAULT_CHANNELS = "모든 채널";
+
+// Helpers
+export function repairAndParseJson(text: string, fallback: any = null): any {
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(trimmed.replace(/```json/g, "").replace(/```/g, ""));
+  } catch (pe) {
+    try {
+      const cleanJsonStr = trimmed.substring(trimmed.indexOf('{'), trimmed.lastIndexOf('}') + 1);
+      return JSON.parse(cleanJsonStr);
+    } catch (e) {
+      console.error("Failed to repair and parse JSON string:", text);
+      return fallback;
+    }
+  }
+}
+
+export function generateDefaultActionPlan(originalFragment: string, replacement: string, lawDomain: string): string[] {
+  const fragmentName = originalFragment || '논란구절';
+  const replacementName = replacement || '대안문구';
+  const domainName = lawDomain || '관련법';
+  
+  return [
+    `1단계: [즉각 중단] 즉시 해당 광고 카피 내용의 게재 및 인쇄 배포를 일시중단하여 불법 유통 노출을 선제적으로 완전히 차단합니다.`,
+    `2단계: [일대일 변경] 지목된 과장 표현 부위인 '${fragmentName}'을 세련되고 합법적인 안전 대안 문장인 '${replacementName}'(으)로 1:1 전면 교정 패치 처리합니다.`,
+    `3단계: [인증 및 실증 확보] ${domainName} 규정에 근거하여, 해당 성분이나 효능에 대한 정량적 연구 논문 및 시험성적 검증 문서를 서면 대조 확보하여 보관소에 정리 보관합니다.`,
+    `4단계: [시뮬레이션 재심의] 변경 완료된 조감 광고 시안을 '아하시스턴트(aHaSys)' 무결성 심사창에 재전송하여 2차 자율 심의 점수 80점 이상 안정 합격 여부를 최종 확인하는 모니터링 연쇄 장치를 적용합니다.`,
+    `5단계: [캠페인 복구 및 준법 교육] 최종 안전 통과된 광고를 매체에 정상 신규 릴리즈 조치하며, 연관 기획팀 전원에게 동일 규정 미준수가 재발되지 않고 예방되도록 5단계 대처 표준 교육을 실행합니다.`
+  ];
+}
+
 // In-Memory Database for History RAG Cumulative Self-learning Loop
 export interface HistItem {
   id: string;
@@ -92,7 +130,7 @@ export function retrieveGuidelines(text: string): { article: LawArticle; score: 
     }
 
     // Section 8.2: 80% Hard Filter block
-    if (relevanceScore >= 80.0) {
+    if (relevanceScore >= RAG_HARD_FILTER_SCORE) {
       results.push({ article, score: relevanceScore });
     }
   }
@@ -503,13 +541,7 @@ export async function performAnalysis(params: {
       totalTokens += routeResult.usageMetadata.totalTokenCount || 0;
     }
     
-    let parsedRoute: any;
-    try {
-      parsedRoute = JSON.parse(routeResult.responseText.trim().replace(/```json/g, "").replace(/```/g, ""));
-    } catch (pe) {
-      const cleanJsonStr = routeResult.responseText.substring(routeResult.responseText.indexOf('{'), routeResult.responseText.lastIndexOf('}') + 1);
-      parsedRoute = JSON.parse(cleanJsonStr);
-    }
+    const parsedRoute = repairAndParseJson(routeResult.responseText);
     
     if (parsedRoute) {
       routeDecision.needLegal = true;
@@ -614,29 +646,18 @@ export async function performAnalysis(params: {
       totalTokens += result.usageMetadata.totalTokenCount || 0;
     }
     
-    let parsed: any;
-    try {
-      parsed = JSON.parse(result.responseText.trim().replace(/```json/g, "").replace(/```/g, ""));
-    } catch (pe) {
-      try {
-        const cleanJsonStr = result.responseText.substring(result.responseText.indexOf('{'), result.responseText.lastIndexOf('}') + 1);
-        parsed = JSON.parse(cleanJsonStr);
-      } catch (e) {
-        console.error(`Failed to parse agent ${idx} output:`, result.responseText);
-        parsed = { score: 100, violations: [], matchedLaws: [], imageAlternativeProposal: null };
-      }
-    }
+    const parsed = repairAndParseJson(result.responseText, { score: BASE_SCORE, violations: [], matchedLaws: [], imageAlternativeProposal: null });
     parsedAgentsData.push(parsed);
   });
 
   const finalResultData: any = {
     parsedMeta: parsedAgentsData[0].parsedMeta || parsedAgentsData[1].parsedMeta || parsedAgentsData[2].parsedMeta || {
-      productType: "일반광고",
-      targets: "일반 대중",
-      regulatoryDomain: "표시광고법",
-      channels: "모든 채널"
+      productType: DEFAULT_PRODUCT_TYPE,
+      targets: DEFAULT_TARGETS,
+      regulatoryDomain: DEFAULT_REGULATORY_DOMAIN,
+      channels: DEFAULT_CHANNELS
     },
-    score: 100,
+    score: BASE_SCORE,
     violations: [],
     matchedLaws: [],
     imageAlternativeProposal: {
@@ -738,14 +759,7 @@ export async function performAnalysis(params: {
       // Formulate customized 5-step action plan
       let actionPlan = v.actionPlan;
       if (!actionPlan || !Array.isArray(actionPlan) || actionPlan.length < 5) {
-        const clauseName = v.clause || "법률 및 가이드라인";
-        actionPlan = [
-          `1단계: [즉각 중단] 즉시 해당 광고 카피 내용의 게재 및 인쇄 배포를 일시중단하여 불법 유통 노출을 선제적으로 완전히 차단합니다.`,
-          `2단계: [일대일 변경] 지목된 과장 표현 부위인 '${v.originalFragment || '논란구절'}'을 세련되고 합법적인 안전 대안 문장인 '${v.replacement || '대안문구'}'(으)로 1:1 전면 교정 패치 처리합니다.`,
-          `3단계: [인증 및 실증 확보] ${matchingLaw ? matchingLaw.domain : '관련법'} 규정에 근거하여, 해당 성분이나 효능에 대한 정량적 연구 논문 및 시험성적 검증 문서를 서면 대조 확보하여 보관소에 정리 보관합니다.`,
-          `4단계: [시뮬레이션 재심의] 변경 완료된 조감 광고 시안을 '아하시스턴트(aHaSys)' 무결성 심사창에 재전송하여 2차 자율 심의 점수 80점 이상 안정 합격 여부를 최종 확인하는 모니터링 연쇄 장치를 적용합니다.`,
-          `5단계: [캠페인 복구 및 준법 교육] 최종 안전 통과된 광고를 매체에 정상 신규 릴리즈 조치하며, 연관 기획팀 전원에게 동일 규정 미준수가 재발되지 않고 예방되도록 5단계 대처 표준 교육을 실행합니다.`
-        ];
+        actionPlan = generateDefaultActionPlan(v.originalFragment, v.replacement, matchingLaw ? matchingLaw.domain : '');
       }
 
       return {

@@ -5,7 +5,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { LawArticle, REGULATORY_LIBRARY } from '../db/regulatoryLibrary';
-import { getSystemInstruction } from '../prompts/compliancePrompt';
+import { getSystemInstruction, getSocialControversyInstruction, getEsgGreenwashingInstruction, getPrivacyProtectionInstruction, getYouthProtectionInstruction, getOrchestratorRoutingInstruction } from '../prompts/compliancePrompt';
 
 // In-Memory Database for History RAG Cumulative Self-learning Loop
 export interface HistItem {
@@ -455,39 +455,263 @@ export async function performAnalysis(params: {
 - Compliance Score: ${fs.score}`;
   }).join('\n\n');
 
-  // Build adaptive comprehensive prompt that targets multiple spheres of products and history
-  const systemInstruction = getSystemInstruction(matchedLawsContext, fewShotContext);
-
-  let responseText = "";
+  const systemInstructionLegal = getSystemInstruction(matchedLawsContext, fewShotContext);
+  const systemInstructionSocial = getSocialControversyInstruction();
+  const systemInstructionEsg = getEsgGreenwashingInstruction();
+  const systemInstructionPrivacy = getPrivacyProtectionInstruction();
+  const systemInstructionYouth = getYouthProtectionInstruction();
 
   const adapter: LLMAdapter = (adapterType === 'GEMINI' || !adapterType)
     ? new GeminiAdapter()
     : new OpenAICompatibleAdapter();
 
-  const payload: LLMAdapterPayload = {
+  let promptTokens = 0;
+  let completionTokens = 0;
+  let totalTokens = 0;
+  let hasUsage = false;
+
+  const orchestratorPayload: LLMAdapterPayload = {
     textStr,
     imageB64,
     imagesB64,
-    systemInstruction,
+    systemInstruction: getOrchestratorRoutingInstruction(),
     customModel,
     customEndpoint,
     customApiKey,
     globalApiKey
   };
 
-  const adapterResult = await adapter.analyze(payload);
-  responseText = adapterResult.responseText;
-  usageMetadata = adapterResult.usageMetadata;
+  let routeDecision = {
+    needLegal: true,
+    needSocial: false,
+    needEsg: false,
+    needPrivacy: false,
+    needYouth: false,
+    legalSegment: "",
+    socialSegment: "",
+    esgSegment: "",
+    privacySegment: "",
+    youthSegment: ""
+  };
 
-  // Parse the returned response properly
-  let finalResultData: any;
   try {
-    finalResultData = JSON.parse(responseText.trim().replace(/```json/g, "").replace(/```/g, ""));
-  } catch (pe) {
-    // JSON Repair fallback if formatting is imperfect
-    const cleanJsonStr = responseText.substring(responseText.indexOf('{'), responseText.lastIndexOf('}') + 1);
-    finalResultData = JSON.parse(cleanJsonStr);
+    const routeResult = await adapter.analyze(orchestratorPayload);
+    if (routeResult.usageMetadata) {
+      hasUsage = true;
+      promptTokens += routeResult.usageMetadata.promptTokenCount || 0;
+      completionTokens += routeResult.usageMetadata.candidatesTokenCount || 0;
+      totalTokens += routeResult.usageMetadata.totalTokenCount || 0;
+    }
+    
+    let parsedRoute: any;
+    try {
+      parsedRoute = JSON.parse(routeResult.responseText.trim().replace(/```json/g, "").replace(/```/g, ""));
+    } catch (pe) {
+      const cleanJsonStr = routeResult.responseText.substring(routeResult.responseText.indexOf('{'), routeResult.responseText.lastIndexOf('}') + 1);
+      parsedRoute = JSON.parse(cleanJsonStr);
+    }
+    
+    if (parsedRoute) {
+      routeDecision.needLegal = true;
+      routeDecision.needSocial = parsedRoute.needSocial === true;
+      routeDecision.needEsg = parsedRoute.needEsg === true;
+      routeDecision.needPrivacy = parsedRoute.needPrivacy === true;
+      routeDecision.needYouth = parsedRoute.needYouth === true;
+      routeDecision.legalSegment = typeof parsedRoute.legalSegment === 'string' ? parsedRoute.legalSegment.trim() : "";
+      routeDecision.socialSegment = typeof parsedRoute.socialSegment === 'string' ? parsedRoute.socialSegment.trim() : "";
+      routeDecision.esgSegment = typeof parsedRoute.esgSegment === 'string' ? parsedRoute.esgSegment.trim() : "";
+      routeDecision.privacySegment = typeof parsedRoute.privacySegment === 'string' ? parsedRoute.privacySegment.trim() : "";
+      routeDecision.youthSegment = typeof parsedRoute.youthSegment === 'string' ? parsedRoute.youthSegment.trim() : "";
+    }
+  } catch (err) {
+    console.warn("Orchestrator routing failed, falling back to full review:", err);
+    routeDecision = {
+      needLegal: true,
+      needSocial: true,
+      needEsg: true,
+      needPrivacy: true,
+      needYouth: true,
+      legalSegment: "",
+      socialSegment: "",
+      esgSegment: "",
+      privacySegment: "",
+      youthSegment: ""
+    };
   }
+
+  routeDecision.needLegal = true;
+
+  const payloads: any[] = [];
+  if (routeDecision.needLegal) {
+    payloads.push({
+      textStr: textStr,
+      imageB64,
+      imagesB64,
+      systemInstruction: systemInstructionLegal,
+      customModel,
+      customEndpoint,
+      customApiKey,
+      globalApiKey
+    });
+  }
+  if (routeDecision.needSocial) {
+    payloads.push({
+      textStr: routeDecision.socialSegment || textStr,
+      imageB64,
+      imagesB64,
+      systemInstruction: systemInstructionSocial,
+      customModel,
+      customEndpoint,
+      customApiKey,
+      globalApiKey
+    });
+  }
+  if (routeDecision.needEsg) {
+    payloads.push({
+      textStr: routeDecision.esgSegment || textStr,
+      imageB64,
+      imagesB64,
+      systemInstruction: systemInstructionEsg,
+      customModel,
+      customEndpoint,
+      customApiKey,
+      globalApiKey
+    });
+  }
+  if (routeDecision.needPrivacy) {
+    payloads.push({
+      textStr: routeDecision.privacySegment || textStr,
+      imageB64,
+      imagesB64,
+      systemInstruction: systemInstructionPrivacy,
+      customModel,
+      customEndpoint,
+      customApiKey,
+      globalApiKey
+    });
+  }
+  if (routeDecision.needYouth) {
+    payloads.push({
+      textStr: routeDecision.youthSegment || textStr,
+      imageB64,
+      imagesB64,
+      systemInstruction: systemInstructionYouth,
+      customModel,
+      customEndpoint,
+      customApiKey,
+      globalApiKey
+    });
+  }
+
+  const agentResults = await Promise.all(payloads.map(p => adapter.analyze(p)));
+
+  const parsedAgentsData: any[] = [];
+  agentResults.forEach((result, idx) => {
+    if (result.usageMetadata) {
+      hasUsage = true;
+      promptTokens += result.usageMetadata.promptTokenCount || 0;
+      completionTokens += result.usageMetadata.candidatesTokenCount || 0;
+      totalTokens += result.usageMetadata.totalTokenCount || 0;
+    }
+    
+    let parsed: any;
+    try {
+      parsed = JSON.parse(result.responseText.trim().replace(/```json/g, "").replace(/```/g, ""));
+    } catch (pe) {
+      try {
+        const cleanJsonStr = result.responseText.substring(result.responseText.indexOf('{'), result.responseText.lastIndexOf('}') + 1);
+        parsed = JSON.parse(cleanJsonStr);
+      } catch (e) {
+        console.error(`Failed to parse agent ${idx} output:`, result.responseText);
+        parsed = { score: 100, violations: [], matchedLaws: [], imageAlternativeProposal: null };
+      }
+    }
+    parsedAgentsData.push(parsed);
+  });
+
+  const finalResultData: any = {
+    parsedMeta: parsedAgentsData[0].parsedMeta || parsedAgentsData[1].parsedMeta || parsedAgentsData[2].parsedMeta || {
+      productType: "일반광고",
+      targets: "일반 대중",
+      regulatoryDomain: "표시광고법",
+      channels: "모든 채널"
+    },
+    score: 100,
+    violations: [],
+    matchedLaws: [],
+    imageAlternativeProposal: {
+      detectedVisualCopys: [],
+      visualViolations: [],
+      visualRemediationSteps: [],
+      alternativeVisualDraft: ""
+    }
+  };
+
+  parsedAgentsData.forEach(p => {
+    if (p.violations && Array.isArray(p.violations)) {
+      finalResultData.violations.push(...p.violations);
+    }
+  });
+
+  finalResultData.violations.forEach((v: any, index: number) => {
+    v.id = v.id || `violation_${index + 1}`;
+  });
+
+  let totalDeductions = 0;
+  finalResultData.violations.forEach((v: any) => {
+    const points = typeof v.deductionPoints === 'number' ? v.deductionPoints : 0;
+    totalDeductions += points;
+  });
+  finalResultData.score = Math.max(0, 100 - totalDeductions);
+
+  const seenLaws = new Set<string>();
+  parsedAgentsData.forEach(p => {
+    if (p.matchedLaws && Array.isArray(p.matchedLaws)) {
+      p.matchedLaws.forEach((l: any) => {
+        const key = `${l.title || ''}-${l.tier || 0}`;
+        if (!seenLaws.has(key)) {
+          seenLaws.add(key);
+          finalResultData.matchedLaws.push(l);
+        }
+      });
+    }
+  });
+
+  const detectedVisualCopysSet = new Set<string>();
+  const visualViolationsSet = new Set<string>();
+  const visualRemediationStepsSet = new Set<string>();
+  const alternativeDrafts: string[] = [];
+
+  parsedAgentsData.forEach(p => {
+    if (p.imageAlternativeProposal) {
+      const proposal = p.imageAlternativeProposal;
+      if (Array.isArray(proposal.detectedVisualCopys)) {
+        proposal.detectedVisualCopys.forEach((c: string) => detectedVisualCopysSet.add(c));
+      }
+      if (Array.isArray(proposal.visualViolations)) {
+        proposal.visualViolations.forEach((v: string) => visualViolationsSet.add(v));
+      }
+      if (Array.isArray(proposal.visualRemediationSteps)) {
+        proposal.visualRemediationSteps.forEach((s: string) => visualRemediationStepsSet.add(s));
+      }
+      if (typeof proposal.alternativeVisualDraft === 'string' && proposal.alternativeVisualDraft.trim()) {
+        alternativeDrafts.push(proposal.alternativeVisualDraft.trim());
+      }
+    }
+  });
+
+  finalResultData.imageAlternativeProposal = {
+    detectedVisualCopys: Array.from(detectedVisualCopysSet),
+    visualViolations: Array.from(visualViolationsSet),
+    visualRemediationSteps: Array.from(visualRemediationStepsSet),
+    alternativeVisualDraft: alternativeDrafts.join("\n\n")
+  };
+
+  usageMetadata = hasUsage ? {
+    promptTokenCount: promptTokens,
+    candidatesTokenCount: completionTokens,
+    totalTokenCount: totalTokens
+  } : null;
 
   // --- Postprocessing: Authentic Citation Verification & Action Plan generation ---
   if (finalResultData.violations && Array.isArray(finalResultData.violations)) {

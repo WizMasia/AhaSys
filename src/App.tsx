@@ -736,16 +736,10 @@ export default function App() {
   };
 
   const restoreHistoryResult = (item: any) => {
-    if (item.result) {
-      setAnalysisResult(item.result);
-      setInputText(item.inputText || "");
-      setErrorText(null);
-      setActiveTab('review');
-    } else {
-      setInputText(item.inputText || "");
-      setErrorText(null);
-      setActiveTab('review');
-    }
+    setAnalysisResult(item.result || null);
+    setInputText(item.inputText || "");
+    setErrorText(null);
+    setActiveTab('review');
   };
 
   return (

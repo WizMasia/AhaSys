@@ -748,12 +748,15 @@ export default function App() {
       
       {/* 🔮 Superb Futuristic Glowing Top Nav bar */}
       <nav className={`no-print border-b sticky top-0 z-40 backdrop-blur-md px-6 py-4 flex items-center justify-between transition-colors ${darkMode ? 'bg-[#060913]/85 border-slate-900/60' : 'bg-white/90 border-slate-200'}`}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-amber-500 flex items-center justify-center text-white font-extrabold text-lg shadow-lg shadow-indigo-600/30 select-none cursor-pointer">
+        <div 
+          onClick={() => { setActiveTab('review'); setErrorText(null); }}
+          className="flex items-center gap-3 cursor-pointer select-none group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-amber-500 flex items-center justify-center text-white font-extrabold text-lg shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform duration-200">
             🛡️
           </div>
           <div>
-            <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded font-black tracking-widest uppercase">KFTC RAG Platform Suite</span>
+            <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded font-black tracking-widest uppercase group-hover:text-indigo-300 transition-colors">KFTC RAG Platform Suite</span>
             <h1 className={`text-base font-black flex items-center gap-1.5 leading-none mt-1 ${darkMode ? 'text-slate-100' : 'text-slate-950'}`}>
               <span>아하시스턴트 AI (aHaSys)</span>
               <span className="text-[11px] text-slate-500 font-normal">v3.5.2 Pro</span>

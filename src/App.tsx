@@ -27,6 +27,11 @@ import { BenchmarkTab } from './components/BenchmarkTab';
 import { HistoryTab } from './components/HistoryTab';
 import { ReviewTab } from './components/ReviewTab';
 
+export const SCORE_THRESHOLD_EXCELLENT = 95;
+export const SCORE_THRESHOLD_GOOD = 80;
+export const SCORE_THRESHOLD_NORMAL = 60;
+export const SCORE_THRESHOLD_WARNING = 40;
+
 export default function App() {
   const llm = useApp();
   const { darkMode, setDarkMode, fontSize, setFontSize, activeTab, setActiveTab } = llm;
@@ -158,7 +163,7 @@ export default function App() {
   };
 
   const getCsatGradeInfo = (score: number) => {
-    if (score >= 95) {
+    if (score >= SCORE_THRESHOLD_EXCELLENT) {
       return { 
         grade: 1, 
         label: "🥇 1등급 (최우수)", 
@@ -167,7 +172,7 @@ export default function App() {
         hasWarning: false,
         desc: "대한민국 광고 위법 자율성 최상위 등급입니다. 특정한 가처분이나 과장 표현 위반 조사 지점이 발견되지 않았습니다."
       };
-    } else if (score >= 80) {
+    } else if (score >= SCORE_THRESHOLD_GOOD) {
       return { 
         grade: 2, 
         label: "🥈 2등급 (우수 - 조건부 승인)", 
@@ -176,7 +181,7 @@ export default function App() {
         hasWarning: false,
         desc: "일부 조항 대조 시 경미한 위반 가능 영역이나 근거 자료 출처 증명서 배포가 보류 권장되는 지점이 검출되었으나, 준법 권장사항을 수용 조율할 시 충분히 안전하게 통과 가능합니다."
       };
-    } else if (score >= 60) {
+    } else if (score >= SCORE_THRESHOLD_NORMAL) {
       return { 
         grade: 3, 
         label: "🥉 3등급 (보통 - 전면 재검토 요망)", 
@@ -185,7 +190,7 @@ export default function App() {
         hasWarning: true,
         desc: "허위 기만광고의 소지가 있어 공정거래법 저촉 위험이 현저히 농후합니다. 벌점 감쇄에 따른 법정 분쟁 및 행정 처분 가능성이 존재하므로, 즉시 안전한 교정 대안안으로 전면 순화하여 배포하십시오."
       };
-    } else if (score >= 40) {
+    } else if (score >= SCORE_THRESHOLD_WARNING) {
       return { 
         grade: 4, 
         label: "⚠️ 4등급 (경고 - 제재 위험군)", 
@@ -207,10 +212,10 @@ export default function App() {
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 95) return 'border-emerald-500 text-emerald-400';
-    if (score >= 80) return 'border-teal-500 text-teal-400';
-    if (score >= 60) return 'border-amber-500 text-amber-400';
-    if (score >= 40) return 'border-orange-500 text-orange-400';
+    if (score >= SCORE_THRESHOLD_EXCELLENT) return 'border-emerald-500 text-emerald-400';
+    if (score >= SCORE_THRESHOLD_GOOD) return 'border-teal-500 text-teal-400';
+    if (score >= SCORE_THRESHOLD_NORMAL) return 'border-amber-500 text-amber-400';
+    if (score >= SCORE_THRESHOLD_WARNING) return 'border-orange-500 text-orange-400';
     return 'border-rose-500 text-rose-450 dark:text-rose-400';
   };
 

@@ -764,10 +764,10 @@ export default function App() {
           </div>
         </div>
 
-        <div className="hidden lg:flex items-center gap-2 bg-slate-900/40 p-1.5 rounded-xl border border-slate-805/40">
+        <div className={`hidden lg:flex items-center gap-2 p-1.5 rounded-xl border ${darkMode ? 'bg-slate-900/40 border-slate-800/40' : 'bg-slate-100 border-slate-200'}`}>
           <button
             onClick={() => { setActiveTab('review'); setErrorText(null); }}
-            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'review' ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'text-slate-400 hover:text-slate-250 border border-transparent'}`}
+            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'review' ? (darkMode ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'bg-indigo-600/10 text-indigo-700 border border-indigo-500/20 shadow-sm font-extrabold') : (darkMode ? 'text-slate-400 hover:text-slate-250 border border-transparent' : 'text-slate-600 hover:text-slate-900 border border-transparent')}`}
           >
             <span>✏️ 실시간 심의</span>
           </button>
@@ -775,7 +775,7 @@ export default function App() {
           {showBenchmarkTab && (
             <button
               onClick={() => { setActiveTab('benchmark'); setErrorText(null); }}
-              className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'benchmark' ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'text-slate-400 hover:text-slate-250 border border-transparent'}`}
+              className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'benchmark' ? (darkMode ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'bg-indigo-600/10 text-indigo-700 border border-indigo-500/20 shadow-sm font-extrabold') : (darkMode ? 'text-slate-400 hover:text-slate-250 border border-transparent' : 'text-slate-600 hover:text-slate-900 border border-transparent')}`}
             >
               <Gauge className="w-3.5 h-3.5" />
               <span>📊 무작위 벤치마크 대시보드</span>
@@ -784,7 +784,7 @@ export default function App() {
           
           <button
             onClick={() => { setActiveTab('history'); setErrorText(null); }}
-            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'history' ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'text-slate-400 hover:text-slate-250 border border-transparent'}`}
+            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'history' ? (darkMode ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'bg-indigo-600/10 text-indigo-700 border border-indigo-500/20 shadow-sm font-extrabold') : (darkMode ? 'text-slate-400 hover:text-slate-250 border border-transparent' : 'text-slate-600 hover:text-slate-900 border border-transparent')}`}
           >
             <History className="w-3.5 h-3.5" />
             <span>Timeline 저장소</span>
@@ -792,14 +792,14 @@ export default function App() {
 
           <button
             onClick={() => { setActiveTab('about'); setErrorText(null); }}
-            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'about' ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'text-slate-400 hover:text-slate-250 border border-transparent'}`}
+            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'about' ? (darkMode ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'bg-indigo-600/10 text-indigo-700 border border-indigo-500/20 shadow-sm font-extrabold') : (darkMode ? 'text-slate-400 hover:text-slate-250 border border-transparent' : 'text-slate-600 hover:text-slate-900 border border-transparent')}`}
           >
             <span>📜 플랫폼 지침</span>
           </button>
 
           <button
             onClick={() => { setActiveTab('settings'); setErrorText(null); }}
-            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'settings' ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'text-slate-400 hover:text-slate-250 border border-transparent'}`}
+            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'settings' ? (darkMode ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'bg-indigo-600/10 text-indigo-700 border border-indigo-500/20 shadow-sm font-extrabold') : (darkMode ? 'text-slate-400 hover:text-slate-250 border border-transparent' : 'text-slate-600 hover:text-slate-900 border border-transparent')}`}
           >
             <Settings className="w-3.5 h-3.5" />
             <span>LLM 설정</span>
@@ -807,24 +807,24 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-0.5 no-print">
+          <div className={`flex rounded-lg p-0.5 no-print border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-250'}`}>
             <button
               onClick={() => setFontSize('sm')}
-              className={`px-2 py-1 rounded text-[10px] font-black cursor-pointer ${fontSize === 'sm' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}
+              className={`px-2 py-1 rounded text-[10px] font-black cursor-pointer transition-colors ${fontSize === 'sm' ? 'bg-indigo-600 text-white shadow-sm' : (darkMode ? 'text-slate-500 hover:text-slate-350' : 'text-slate-600 hover:text-slate-900')}`}
               title="글꼴 작게"
             >
               A-
             </button>
             <button
               onClick={() => setFontSize('md')}
-              className={`px-2 py-1 rounded text-[10px] font-black cursor-pointer ${fontSize === 'md' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}
+              className={`px-2 py-1 rounded text-[10px] font-black cursor-pointer transition-colors ${fontSize === 'md' ? 'bg-indigo-600 text-white shadow-sm' : (darkMode ? 'text-slate-500 hover:text-slate-350' : 'text-slate-600 hover:text-slate-900')}`}
               title="글꼴 표준"
             >
               A
             </button>
             <button
               onClick={() => setFontSize('lg')}
-              className={`px-2 py-1 rounded text-[10px] font-black cursor-pointer ${fontSize === 'lg' ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}
+              className={`px-2 py-1 rounded text-[10px] font-black cursor-pointer transition-colors ${fontSize === 'lg' ? 'bg-indigo-600 text-white shadow-sm' : (darkMode ? 'text-slate-500 hover:text-slate-350' : 'text-slate-600 hover:text-slate-900')}`}
               title="글꼴 크게"
             >
               A+
@@ -842,7 +842,7 @@ export default function App() {
       </nav>
 
       {/* Main Container Layout */}
-      <main className="max-w-7xl mx-auto px-6 py-8 no-print">
+      <main className={`max-w-7xl mx-auto px-6 py-8 no-print ${fontSize === 'sm' ? 'text-size-sm' : fontSize === 'lg' ? 'text-size-lg' : 'text-size-md'}`}>
         
         {/* TAB 1: REALTIME REVIEW INTERFACE */}
         {activeTab === 'review' && (

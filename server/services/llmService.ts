@@ -362,7 +362,7 @@ export async function performAnalysis(params: {
   const activeApiKey = (typeof customApiKey === 'string' && customApiKey.trim()) ? customApiKey.trim() : globalApiKey;
 
   if ((adapterType === 'GEMINI' || !adapterType) && !activeApiKey) {
-    const err: any = new Error("정부 RAG 데이터 연결을 처리할 Gemini API Key가 할당되지 않았습니다. 아하시스턴트 AI 정밀 진단을 실행하시려면 상단의 [LLM 설정] 탭으로 이동하시어 API Key를 등록해주십시오.");
+    const err: any = new Error("RAG 연산을 처리할 Gemini API Key가 할당되지 않았습니다. 아하시스턴트 정밀 진단을 구동하시려면 상단의 [LLM 설정] 탭으로 이동하시어 API Key를 등록해주십시오.");
     err.code = 'MISSING_API_KEY';
     throw err;
   }

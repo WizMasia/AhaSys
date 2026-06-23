@@ -63,7 +63,7 @@ router.post('/analyze', async (req, res) => {
       customApiKey,
       websiteUrl,
       additionalContext,
-      globalApiKey: undefined
+      globalApiKey: process.env.FALLBACK_API_KEY || process.env.GEMINI_API_KEY
     });
     res.json(result);
   } catch (err: any) {

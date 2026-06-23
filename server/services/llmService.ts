@@ -240,37 +240,26 @@ export class MissingApiKeyError extends Error {
   }
 }
 
-export class GeminiAdapter implements LLMAdapter {
-  async analyze(payload: LLMAdapterPayload): Promise<SystemAnalysisResult> {
-    const { textStr, imageB64, imagesB64, systemInstruction, customApiKey, globalApiKey } = payload;
+export async function executeLLMAnalysis(payload: LLMAdapterPayload, adapterType: string): Promise<SystemAnalysisResult> {
+  const { textStr, imageB64, imagesB64, systemInstruction, customModel, customEndpoint, customApiKey, globalApiKey } = payload;
+  
+  if (adapterType === 'GEMINI' || !adapterType) {
     const activeApiKey = (typeof customApiKey === 'string' && customApiKey.trim()) ? customApiKey.trim() : globalApiKey;
-
     if (!activeApiKey) {
       throw new MissingApiKeyError("정부 RAG 데이터 연결을 처리할 Gemini API Key가 할당되지 않았습니다. 아하시스턴트 AI 정밀 진단을 실행하시려면 상단의 [LLM 설정] 탭으로 이동하시어 API Key를 등록해주십시오.");
     }
 
     const dynamicAi = new GoogleGenAI({
       apiKey: activeApiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
     });
 
     const adText = textStr.trim() ? `"${textStr}"` : `"(텍스트는 별도로 입력하지 않았음. 이미지 내부의 텍스트와 시각 요소를 바탕으로 심사해주십시오.)"`;
-    const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [
-      { text: `아래 내용을 분석해주십시오:\n\n광고 텍스트 원안: ${adText}` }
-    ];
+    const parts: any[] = [{ text: `아래 내용을 분석해주십시오:\n\n광고 텍스트 원안: ${adText}` }];
     
-    // Handle multimodal vision compliance with multi-image support
     const imagePayloads: string[] = [];
     if (Array.isArray(imagesB64) && imagesB64.length > 0) {
-      imagesB64.forEach((img) => {
-        if (typeof img === 'string' && img.trim()) {
-          imagePayloads.push(img.trim());
-        }
-      });
+      imagesB64.forEach((img) => { if (typeof img === 'string' && img.trim()) imagePayloads.push(img.trim()); });
     } else if (imageB64 && typeof imageB64 === 'string' && imageB64.trim()) {
       imagePayloads.push(imageB64.trim());
     }
@@ -279,12 +268,7 @@ export class GeminiAdapter implements LLMAdapter {
       imagePayloads.forEach((imgData) => {
         const mime = imgData.match(/data:(.*?);base64,/)?.[1] || "image/png";
         const cleanBase64 = imgData.replace(/^data:image\/\w+;base64,/, "");
-        parts.push({
-          inlineData: {
-            mimeType: mime,
-            data: cleanBase64
-          }
-        });
+        parts.push({ inlineData: { mimeType: mime, data: cleanBase64 } });
       });
       parts.push({ text: `[안내] 총 ${imagePayloads.length}개의 광고 이미지가 한 번에 첨부되었습니다. 텍스트 내용뿐만 아니라 각각의 이미지 내부의 시각적 요소(기만적인 원형 그래프 수치 왜곡, 안전성 검증 마크 미인증 무단 도용, 선정적인 상징물, 역사적 참사를 악용하거나 희하화하여 조롱하는 노란 리본이나 전쟁 참상 상업화 등 비주얼 검수 수칙)를 상세 진단하고 위반 시 정밀 감점을 더해주십시오.` });
     }
@@ -292,88 +276,44 @@ export class GeminiAdapter implements LLMAdapter {
     const response = await dynamicAi.models.generateContent({
       model: "gemini-3.5-flash",
       contents: { parts },
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json"
-      }
+      config: { systemInstruction, responseMimeType: "application/json" }
     });
 
-    return {
-      responseText: response.text || "",
-      usageMetadata: response.usageMetadata
-    };
-  }
-}
-
-export class OpenAICompatibleAdapter implements LLMAdapter {
-  async analyze(payload: LLMAdapterPayload): Promise<SystemAnalysisResult> {
-    const { textStr, imageB64, imagesB64, systemInstruction, customModel, customEndpoint, customApiKey } = payload;
+    return { responseText: response.text || "", usageMetadata: response.usageMetadata };
+  } else {
     const endpointBase = customEndpoint && customEndpoint.trim() ? customEndpoint.trim() : "http://localhost:11434/v1";
     const cleanEndpoint = endpointBase.endsWith('/') ? endpointBase.slice(0, -1) : endpointBase;
-    const chatUrl = `${cleanEndpoint}/chat/completions`;
     
-    interface TextPart {
-      type: 'text';
-      text: string;
-    }
-
-    interface ImagePart {
-      type: 'image_url';
-      image_url: {
-        url: string;
-      };
-    }
-
-    type MessagePart = TextPart | ImagePart;
-
-    interface ChatMessage {
-      role: 'system' | 'user' | 'assistant';
-      content: string | MessagePart[];
-    }
-
-    const messages: ChatMessage[] = [
+    const messages = [
       { role: "system", content: systemInstruction }
     ];
 
-    const userParts: MessagePart[] = [];
-    userParts.push({ type: "text", text: `아래 내용을 광고 법률 기준에 따라 정밀 분석하여 법규 제재 항목, 벌점, 그리고 준법 대체 텍스트를 JSON 스키마 규격으로 즉시 도출하시오.\n\n광고 텍스트 원안: "${textStr}"` });
+    const userParts: any[] = [{ type: "text", text: `아래 내용을 광고 법률 기준에 따라 정밀 분석하여 법규 제재 항목, 벌점, 그리고 준법 대체 텍스트를 JSON 스키마 규격으로 즉시 도출하시오.\n\n광고 텍스트 원안: "${textStr}"` }];
     
-    // Multimodal vision compliance for OpenAI (e.g. Ollama llava / local Vision models)
     const imagePayloads: string[] = [];
     if (Array.isArray(imagesB64) && imagesB64.length > 0) {
-      imagesB64.forEach((img) => {
-        if (typeof img === 'string' && img.trim()) imagePayloads.push(img.trim());
-      });
+      imagesB64.forEach((img) => { if (typeof img === 'string' && img.trim()) imagePayloads.push(img.trim()); });
     } else if (imageB64 && typeof imageB64 === 'string' && imageB64.trim()) {
       imagePayloads.push(imageB64.trim());
     }
 
     imagePayloads.forEach((imgData) => {
       const cleanBase64 = imgData.startsWith("data:") ? imgData : `data:image/png;base64,${imgData}`;
-      userParts.push({
-        type: "image_url",
-        image_url: {
-          url: cleanBase64
-        }
-      });
+      userParts.push({ type: "image_url", image_url: { url: cleanBase64 } });
     });
 
-    messages.push({ role: "user", content: userParts });
+    messages.push({ role: "user", content: userParts } as any);
 
-    const customModelName = customModel && customModel.trim() ? customModel.trim() : "llama3";
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json"
-    };
-    const activeApiKeyVal = (typeof customApiKey === 'string' && customApiKey.trim()) ? customApiKey.trim() : '';
-    if (activeApiKeyVal) {
-      headers["Authorization"] = `Bearer ${activeApiKeyVal}`;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (customApiKey && customApiKey.trim()) {
+      headers["Authorization"] = `Bearer ${customApiKey.trim()}`;
     }
 
-    const fetchResponse = await fetch(chatUrl, {
+    const fetchResponse = await fetch(`${cleanEndpoint}/chat/completions`, {
       method: "POST",
       headers,
       body: JSON.stringify({
-        model: customModelName,
+        model: customModel && customModel.trim() ? customModel.trim() : "llama3",
         messages,
         response_format: { type: "json_object" },
         temperature: 0.1
@@ -381,22 +321,11 @@ export class OpenAICompatibleAdapter implements LLMAdapter {
     });
 
     if (!fetchResponse.ok) {
-      const errText = await fetchResponse.text();
-      throw new Error(`Endpoint returned status ${fetchResponse.status}: ${errText}`);
+      throw new Error(`Endpoint returned status ${fetchResponse.status}: ${await fetchResponse.text()}`);
     }
 
-    interface ChatCompletionResponse {
-      choices?: Array<{
-        message?: {
-          content?: string;
-        };
-      }>;
-    }
-
-    const resJson = await fetchResponse.json() as ChatCompletionResponse;
-    const responseText = resJson.choices?.[0]?.message?.content || "";
-
-    return { responseText };
+    const resJson = await fetchResponse.json() as any;
+    return { responseText: resJson.choices?.[0]?.message?.content || "" };
   }
 }
 
@@ -499,10 +428,6 @@ export async function performAnalysis(params: {
   const systemInstructionPrivacy = getPrivacyProtectionInstruction();
   const systemInstructionYouth = getYouthProtectionInstruction();
 
-  const adapter: LLMAdapter = (adapterType === 'GEMINI' || !adapterType)
-    ? new GeminiAdapter()
-    : new OpenAICompatibleAdapter();
-
   let promptTokens = 0;
   let completionTokens = 0;
   let totalTokens = 0;
@@ -533,7 +458,7 @@ export async function performAnalysis(params: {
   };
 
   try {
-    const routeResult = await adapter.analyze(orchestratorPayload);
+    const routeResult = await executeLLMAnalysis(orchestratorPayload, adapterType);
     if (routeResult.usageMetadata) {
       hasUsage = true;
       promptTokens += routeResult.usageMetadata.promptTokenCount || 0;
@@ -635,7 +560,7 @@ export async function performAnalysis(params: {
     });
   }
 
-  const agentResults = await Promise.all(payloads.map(p => adapter.analyze(p)));
+  const agentResults = await Promise.all(payloads.map(p => executeLLMAnalysis(p, adapterType)));
 
   const parsedAgentsData: any[] = [];
   agentResults.forEach((result, idx) => {

@@ -147,6 +147,10 @@ export function getYouthProtectionInstruction(): string {
   return loadInstructions()["YOUTH"] || "";
 }
 
+export function getCopyrightProtectionInstruction(): string {
+  return loadInstructions()["COPYRIGHT"] || "";
+}
+
 export function getSocialControversyInstruction(): string {
   return loadInstructions()["SOCIAL"] || "";
 }

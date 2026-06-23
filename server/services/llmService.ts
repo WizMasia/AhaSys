@@ -5,7 +5,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { LawArticle, REGULATORY_LIBRARY } from '../db/regulatoryLibrary';
-import { getSystemInstruction, getSocialControversyInstruction, getEsgGreenwashingInstruction, getPrivacyProtectionInstruction, getYouthProtectionInstruction, getOrchestratorRoutingInstruction } from '../prompts/compliancePrompt';
+import { getSystemInstruction, getSocialControversyInstruction, getEsgGreenwashingInstruction, getPrivacyProtectionInstruction, getYouthProtectionInstruction, getOrchestratorRoutingInstruction, getCopyrightProtectionInstruction } from '../prompts/compliancePrompt';
 
 // Constants
 export const BASE_SCORE = 100;
@@ -427,6 +427,7 @@ export async function performAnalysis(params: {
   const systemInstructionEsg = getEsgGreenwashingInstruction();
   const systemInstructionPrivacy = getPrivacyProtectionInstruction();
   const systemInstructionYouth = getYouthProtectionInstruction();
+  const systemInstructionCopyright = getCopyrightProtectionInstruction();
 
   let promptTokens = 0;
   let completionTokens = 0;
@@ -450,11 +451,13 @@ export async function performAnalysis(params: {
     needEsg: false,
     needPrivacy: false,
     needYouth: false,
+    needCopyright: false,
     legalSegment: "",
     socialSegment: "",
     esgSegment: "",
     privacySegment: "",
-    youthSegment: ""
+    youthSegment: "",
+    copyrightSegment: ""
   };
 
   try {
@@ -474,11 +477,13 @@ export async function performAnalysis(params: {
       routeDecision.needEsg = parsedRoute.needEsg === true;
       routeDecision.needPrivacy = parsedRoute.needPrivacy === true;
       routeDecision.needYouth = parsedRoute.needYouth === true;
+      routeDecision.needCopyright = parsedRoute.needCopyright === true;
       routeDecision.legalSegment = typeof parsedRoute.legalSegment === 'string' ? parsedRoute.legalSegment.trim() : "";
       routeDecision.socialSegment = typeof parsedRoute.socialSegment === 'string' ? parsedRoute.socialSegment.trim() : "";
       routeDecision.esgSegment = typeof parsedRoute.esgSegment === 'string' ? parsedRoute.esgSegment.trim() : "";
       routeDecision.privacySegment = typeof parsedRoute.privacySegment === 'string' ? parsedRoute.privacySegment.trim() : "";
       routeDecision.youthSegment = typeof parsedRoute.youthSegment === 'string' ? parsedRoute.youthSegment.trim() : "";
+      routeDecision.copyrightSegment = typeof parsedRoute.copyrightSegment === 'string' ? parsedRoute.copyrightSegment.trim() : "";
     }
   } catch (err) {
     console.warn("Orchestrator routing failed, falling back to full review:", err);
@@ -488,11 +493,13 @@ export async function performAnalysis(params: {
       needEsg: true,
       needPrivacy: true,
       needYouth: true,
+      needCopyright: true,
       legalSegment: "",
       socialSegment: "",
       esgSegment: "",
       privacySegment: "",
-      youthSegment: ""
+      youthSegment: "",
+      copyrightSegment: ""
     };
   }
 
@@ -553,6 +560,18 @@ export async function performAnalysis(params: {
       imageB64,
       imagesB64,
       systemInstruction: systemInstructionYouth,
+      customModel,
+      customEndpoint,
+      customApiKey,
+      globalApiKey
+    });
+  }
+  if (routeDecision.needCopyright) {
+    payloads.push({
+      textStr: routeDecision.copyrightSegment || textStr,
+      imageB64,
+      imagesB64,
+      systemInstruction: systemInstructionCopyright,
       customModel,
       customEndpoint,
       customApiKey,

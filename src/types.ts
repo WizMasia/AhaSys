@@ -74,6 +74,7 @@ export interface SystemAnalysisResult {
     visualRemediationSteps: string[];
     alternativeVisualDraft: string;
   };
+  modelUsed?: string;
 }
 
 export interface RegulationClause {

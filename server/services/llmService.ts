@@ -746,6 +746,7 @@ export async function performAnalysis(params: {
 
   const duration = Date.now() - startTime;
   finalResultData.analysisTimeMs = duration;
+  finalResultData.modelUsed = customModel && customModel.trim() ? customModel.trim() : (adapterType === 'GEMINI' || !adapterType ? 'gemini-3.5-flash' : 'llama3');
 
   // Attach token consumption analytics to finalResultData
   if (usageMetadata) {

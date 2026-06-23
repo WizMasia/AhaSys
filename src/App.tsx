@@ -232,7 +232,7 @@ export default function App() {
     str += `## 1. 종합 심의 판정 요약\n`;
     str += `* **종합 안전 벌점**: **${analysisResult.score}점** / 100점 만점\n`;
     str += `* **최종 준법 성적**: **${gradeInfo.label}** (${gradeInfo.isPassed ? "합격 - 통과 대상" : "기각 - 반려 대상"})\n`;
-    str += `* **기저 인프라 엔진**: \`${llm.adapterType === 'GEMINI' ? 'Gemini API' : 'OpenAI-Compatible'} (${llm.customModel || 'Gemini'})\`\n\n`;
+    str += `* **기저 인프라 엔진**: \`${analysisResult.modelUsed || llm.customModel || 'Gemini'}\`\n\n`;
     str += `> 💡 **심의 요지**: ${gradeInfo.desc}\n\n`;
 
     str += `## 2. 심의 검수 대상 원안 메타 정보\n`;

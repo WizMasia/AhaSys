@@ -1,6 +1,6 @@
 # 🛡️ 아하시스턴트 AI Compliance Review Platform Suite (aHaSys)
 
-> **공정거래위원회(KFTC) 광고 합의·심사 기준 및 대한민국 5단계 특별 상호 법률 결합 실시간 자율 심의 플랫폼**
+> **공정거래위원회(KFTC) 심사 지침 및 대한민국 다각적 법률 결합 실시간 초엄격 준법 심의 통제 플랫폼**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
@@ -12,22 +12,24 @@
 
 ![aHaSys AI Compliance Platform Live Demo Screenshot](./docs/images/demo.png)
 
-**아하시스턴트(aHaSys)**는 기업의 마케팅 광고 문구, 상품 설명서, 웹사이트 랜딩 페이지 등 다양한 미디어 자산이 대한민국 광고 표시규제법 및 공정거래위원회 가이드라인을 준수하는지 실시간 분석·진단하는 고성능 자율 준법 감시 플랫폼입니다.
+**아하시스턴트(aHaSys)**는 대외 공개 예정인 기업 마케팅 문안, 상품 설명서 및 웹사이트 등 다양한 매체 자료가 대한민국 광고 관계 법령 및 공정거래위원회 심사 가이드를 위반하는지 실시간 분석·진단하는 법적 통제 솔루션입니다. 
+
+기존의 단순 규정 대조를 넘어, 마케터가 간과하기 쉬운 우회적/간접적 리스크까지 전면 스크리닝하는 **'초엄격 감수(Zero-Tolerance) 통제 파이프라인'**이 내장되어 있습니다.
 
 ---
 
 ## ✨ 핵심 기능 (Key Features)
 
-1. **실시간 광고 규제 위반 자율 심사 (Online Auto-Audit)**
-   * 텍스트 혹은 분석 타겟 웹사이트 URL을 입력하여 불법/허위·과장 광고 소지 여부 정밀 감수.
-   * 이미지 업로드를 통한 시각 요소 위반 탐지 및 우회 문안 자동 도출.
+1. **실시간 광고 규제 위반 초엄격 심사 (Real-time Compliance Audit)**
+   * 입력된 텍스트 및 홍보 목적 웹사이트 URL을 정밀 진단하여 잠재적 기만·허위·과장 광고 소지 차단.
+   * 이미지 업로드를 통해 시각 도구 비율 왜곡, 사설 인증 마크 오용 및 브랜드 도용 등의 비주얼 위해 요소 진단.
 
 2. **지능형 다중 LLM 결합 어댑터 (Multi-Engine Adapter System)**
    * **Gemini Engine**: Google AI Studio 기반 고성능 클라우드 추론엔진 (공유 키 대기 또는 사용자 개인 키 우회 연결 지향).
    * **Local Engine**: 완전히 격리된 오프라인 프라이버시 검수를 위한 **Ollama** 및 **LM Studio** 원클릭 하이퍼링크 대입 기능 지원.
    * **Other Engine**: **OpenAI API(GPT-4o)**, **OpenRouter** 등 글로벌 상용 LLM 프록시 다이렉트 매핑.
 
-3. **하이브리드 RAG 지식 매핑 (Hybrid RAG Vector Scanner)**
+3. **하이브리드 RAG 지식 매핑 및 단어 스캐너**
    * 최신 공정위 법령 고시, 판례 가치 척도 데이터베이스 기반 검색 매핑 및 실시간 가중치 분석 연계.
 
 4. **A4 공무 규정 표준 결과보고서 및 프린트 전용 엔진**

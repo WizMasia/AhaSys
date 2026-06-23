@@ -115,14 +115,14 @@ export function ReviewTab({
           </div>
           <div className="text-sm space-y-2 leading-relaxed">
             <p className={darkMode ? 'text-rose-300' : 'text-rose-900 font-bold'}>현재 RAG 심의 연산을 처리하는 무료 인프라 공유 <b>Gemini API Key의 사용량 한도(Quota Limit, 429)가 도달</b>했거나, <b>유효한 API 키가 설정되지 않았습니다.</b></p>
-            <p className={darkMode ? 'text-rose-400' : 'text-slate-700'}>안심하시고 귀하만의 자율 검사를 독립 수립하고 싶으시다면, 즉시 상단의 <strong className="text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer" onClick={() => { setActiveTab('settings'); setErrorText(null); }}>[LLM 설정] 탭</strong>으로 이동하셔서 개인용 무료 혹은 상용 Gemini API Key를 등록하여 주십시오.</p>
+            <p className={darkMode ? 'text-rose-400' : 'text-slate-700'}>보안성 및 연산 성능을 온전히 유지하여 독립적인 심의 환경을 수립하고자 하시는 경우, 상단의 <strong className="text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer" onClick={() => { setActiveTab('settings'); setErrorText(null); }}>[LLM 설정] 탭</strong>으로 이동하셔서 개인용 Gemini API Key를 등록하여 주십시오.</p>
           </div>
           <div className="flex gap-2 pt-1 border-t border-rose-500/20">
             <button
               onClick={() => { setActiveTab('settings'); setErrorText(null); }}
               className="py-1.5 px-3 rounded bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-[11px] cursor-pointer"
             >
-              지금 설정 탭에 API Key 입력하기 &rarr;
+              설정 탭으로 이동하여 API Key 입력하기 &rarr;
             </button>
             <button
               onClick={() => { setShowKeyAlert(false); setErrorText(null); }}
@@ -315,12 +315,12 @@ export function ReviewTab({
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-              <span>아하시스턴트가 실시간 심의를 분석 중입니다...</span>
+              <span>준법 감시 위스크 분석이 진행 중입니다...</span>
             </>
           ) : (
             <>
               <ShieldCheck className="w-4 h-4 text-slate-950" />
-              <span>아하시스턴트 법규 무결성 검수 게시</span>
+              <span>초엄격 준법성 자율 규율 검수 시작</span>
             </>
           )}
         </button>
@@ -372,9 +372,9 @@ export function ReviewTab({
             <div className="w-16 h-16 rounded-full bg-slate-800/10 dark:bg-slate-805/50 flex items-center justify-center mb-4 text-slate-505 shrink-0">
               <FileText className="w-8 h-8 text-indigo-400" />
             </div>
-            <h4 className={`font-black mb-1 ${darkMode ? 'text-slate-300' : 'text-slate-850'}`}>아하시스턴트 실시간 진단 대기실</h4>
+            <h4 className={`font-black mb-1 ${darkMode ? 'text-slate-300' : 'text-slate-850'}`}>준법 심의 대기 상태</h4>
             <p className="text-xs text-slate-500 max-w-sm leading-relaxed mx-auto text-center">
-              교정하거나 심사하고 싶은 광고 카피를 기재하거나 이미지/웹주소를 첨부한 뒤, 위의 노란색 [단프라 심의 게시] 단추를 클릭해 실시간 공무 대조 분석을 대기해 주십시오.
+              검증 대상 광고 카피 혹은 웹주소를 입력하고, 상단의 [초엄격 준법성 자율 규율 검수 시작] 버튼을 누르면 RAG 분석에 근거한 준법 보고서가 생성됩니다.
             </p>
           </div>
         )}

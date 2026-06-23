@@ -219,12 +219,13 @@ export function ReviewTab({
 
               <div className="space-y-3">
                 {/* Drag & Drop Zone */}
-                <div
+                <label
+                  htmlFor="add_file_input"
                   onDragEnter={handleDrag}
                   onDragOver={handleDrag}
                   onDragLeave={handleDrag}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-xl p-5 text-center transition-all cursor-pointer relative ${
+                  className={`border-2 border-dashed rounded-xl p-5 text-center transition-all cursor-pointer block relative ${
                     dragActive 
                       ? 'border-amber-400 bg-amber-500/10' 
                       : darkMode ? 'border-slate-800 bg-slate-950/50 hover:bg-slate-900/50' : 'border-slate-250 bg-slate-100/50 hover:bg-slate-200/50'
@@ -238,7 +239,7 @@ export function ReviewTab({
                     multiple
                     onChange={handleImageChange}
                   />
-                  <label htmlFor="add_file_input" className="cursor-pointer space-y-2 block">
+                  <div className="space-y-2 block">
                     <Upload className="w-7 h-7 text-indigo-400 mx-auto" />
                     <p className="text-xs font-bold text-slate-300">
                       이미지 파일을 드롭하거나 클릭하여 여러 개 일괄 업로드
@@ -246,8 +247,8 @@ export function ReviewTab({
                     <p className="text-[10px] text-slate-505">
                       다수의 카드뉴스 배너, 상세페이지 등의 시각적 위반, 승인 마크 도용 자동대조
                     </p>
-                  </label>
-                </div>
+                  </div>
+                </label>
 
                 {/* Display Uploaded Image list in beautiful horizontal grid */}
                 {uploadedImages.length > 0 && (

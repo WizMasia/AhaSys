@@ -107,7 +107,6 @@ export const COMPLIANCE_RESPONSE_SCHEMA = {
   required: ["parsedMeta", "score", "violations", "matchedLaws", "imageAlternativeProposal"]
 };
 
-// Memoized dynamic instruction cache
 let instructionsCache: Record<string, string> | null = null;
 
 function loadInstructions(): Record<string, string> {

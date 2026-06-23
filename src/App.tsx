@@ -232,7 +232,7 @@ export default function App() {
     str += `## 1. 종합 심의 판정 요약\n`;
     str += `* **종합 안전 벌점**: **${analysisResult.score}점** / 100점 만점\n`;
     str += `* **최종 준법 성적**: **${gradeInfo.label}** (${gradeInfo.isPassed ? "합격 - 통과 대상" : "기각 - 반려 대상"})\n`;
-    str += `* **기저 인프라 엔진**: \`Gemini 3.5 Active Adaptor\`\n\n`;
+    str += `* **기저 인프라 엔진**: \`${llm.adapterType === 'GEMINI' ? 'Gemini API' : 'OpenAI-Compatible'} (${llm.customModel || 'Gemini'})\`\n\n`;
     str += `> 💡 **심의 요지**: ${gradeInfo.desc}\n\n`;
 
     str += `## 2. 심의 검수 대상 원안 메타 정보\n`;
@@ -705,7 +705,7 @@ export default function App() {
               violationsCount: found.violationsCount,
               meta: { productType: "자동 추론", targets: "혼합 세그먼트", regulatoryDomain: "계통 특별법", channels: "옴니채널" },
               timeMs: found.timeMs,
-              adapterUsed: "Gemini 3.5 Flash Adaptor"
+              adapterUsed: `${llm.adapterType} (${llm.customModel})`
             }
           };
         }
@@ -939,7 +939,7 @@ export default function App() {
             GitHub (WizMasia/aHaSys)
           </a>
         </div>
-        <p className="text-[10px] text-slate-600">Powered by Gemini 3.5 Flash Model Core Adaptor with Autonomous Hybrid RAG Scanners.</p>
+        <p className="text-[10px] text-slate-600">Powered by {llm.adapterType === 'GEMINI' ? 'Gemini API' : 'OpenAI-Compatible'} ({llm.customModel}) Core Adaptor with Autonomous Hybrid RAG Scanners.</p>
       </footer>
 
       {/* 💻 PDF/Print Preview Overlay Canvas conforming to the standard A4 Aspect Ratio */}

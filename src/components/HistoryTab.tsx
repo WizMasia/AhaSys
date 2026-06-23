@@ -209,7 +209,7 @@ export function HistoryTab({
                 <div className="flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-850/40 pt-3 flex-wrap gap-2">
                   <div className="space-x-3">
                     <span>종합 평가벌점: <strong className="text-slate-300 font-black">{item.score}점</strong></span>
-                    <span>사용 기어 어댑터: <strong className="text-indigo-400">Gemini 3.5 Active Adaptor</strong></span>
+                    <span>사용 엔진 어댑터: <strong className="text-indigo-400">{item.result?.usage?.totalTokens ? "AI Cloud Engine" : "Local/Standard Engine"}</strong></span>
                   </div>
                   
                   {/* Interactive tools inside log database rows */}

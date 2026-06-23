@@ -102,7 +102,7 @@ export function ReviewTab({
   makeLawGoLink,
   getSeverityBadge
 }: ReviewTabProps) {
-  const { darkMode, fontSize, activeTab, setActiveTab } = useApp();
+  const { darkMode, fontSize, activeTab, setActiveTab, adapterType, customModel } = useApp();
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       
@@ -385,7 +385,7 @@ export function ReviewTab({
           <div className="space-y-4 animate-pulse">
             <div className="p-10 text-center rounded-3xl border border-indigo-500/20 bg-indigo-500/5 flex flex-col items-center justify-center gap-3">
               <Loader2 className="w-8 h-8 animate-spin text-indigo-405 shrink-0" />
-              <span className="text-xs text-indigo-305 font-extrabold animate-pulse">Gemini 3.5 Flash RAG 하이브리드 인텔리전트 심사분류기 동기화 중...</span>
+              <span className="text-xs text-indigo-305 font-extrabold animate-pulse">{adapterType === 'GEMINI' ? 'Gemini API' : 'OpenAI-Compatible'} ({customModel}) RAG 하이브리드 인텔리전트 심사분류기 동기화 중...</span>
             </div>
             <div className="h-28 rounded-2xl bg-slate-800/20" />
             <div className="h-44 rounded-2xl bg-slate-800/20" />
@@ -488,7 +488,7 @@ export function ReviewTab({
                   <div>
                     <span className="block text-[10px] text-indigo-405 font-extrabold uppercase tracking-widest leading-none mb-1">⚡ 실시간 인프라 심사 연산 제원</span>
                     <span className="text-[11px] text-slate-400 leading-normal">
-                      총 {analysisResult.analysisTimeMs ? (analysisResult.analysisTimeMs / 1000).toFixed(2) : '0.00'}초 소요 | Gemini 3.5 Flash 메가스케일 연동 분석
+                      총 {analysisResult.analysisTimeMs ? (analysisResult.analysisTimeMs / 1000).toFixed(2) : '0.00'}초 소요 | {adapterType === 'GEMINI' ? 'Gemini API' : 'OpenAI-Compatible'} ({customModel}) 연동 분석
                     </span>
                   </div>
                 </div>

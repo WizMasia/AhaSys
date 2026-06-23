@@ -63,7 +63,7 @@ router.post('/analyze', async (req, res) => {
       customApiKey,
       websiteUrl,
       additionalContext,
-      globalApiKey: process.env.GEMINI_API_KEY
+      globalApiKey: undefined
     });
     res.json(result);
   } catch (err: any) {

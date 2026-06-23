@@ -81,10 +81,14 @@ router.post('/analyze', async (req, res) => {
 
     if (errorMsg.includes('API_KEY_INVALID') || errorMsg.includes('API key not valid') || errorMsg.includes('API_KEY_UNAUTHORIZED')) {
       errCode = 'INVALID_API_KEY';
-      errorMsg = "제공된 Gemini API Key가 유효하지 않습니다. 상단의 [LLM 설정] 탭에 등록하신 API Key 값의 오탈자를 확인하시거나 유효한 키를 재기입하십시오.";
+      errorMsg = (adapterType || adapter) === 'GEMINI'
+        ? "제공된 Gemini API Key가 유효하지 않습니다. 상단의 [LLM 설정] 탭에 등록하신 API Key 값의 오탈자를 확인하시거나 유효한 키를 재기입하십시오."
+        : "제공된 API Key가 유효하지 않습니다. 선택하신 어댑터(OpenRouter/OpenAI 등)의 API Key 설정을 확인해주십시오.";
     } else if (errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('Quota exceeded') || errorMsg.includes('429')) {
       errCode = 'QUOTA_EXCEEDED';
-      errorMsg = "Gemini API의 인프라 실시간 연산 허용량(Quota Limit)이 일시적으로 완전 초과되었습니다. 잠시 후 초과 완화 국면에서 다시 조회를 게시해 주시거나 [LLM 설정] 탭에 개인전용 완충 키를 교체 기입하여 주십시오.";
+      errorMsg = (adapterType || adapter) === 'GEMINI'
+        ? "Gemini API의 인프라 실시간 연산 허용량(Quota Limit)이 일시적으로 완전 초과되었습니다. 잠시 후 초과 완화 국면에서 다시 조회를 게시해 주시거나 [LLM 설정] 탭에 개인전용 완충 키를 교체 기입하여 주십시오."
+        : "선택하신 API 엔드포인트(OpenRouter/OpenAI/로컬 등)의 실시간 호출 제한 한도(Rate Limit / 429)가 초과되었거나 일시적으로 차단되었습니다. 잠시 후 다시 시도해주십시오.";
     }
     
     res.status(500).json({ error: true, code: errCode, message: errorMsg });

@@ -297,10 +297,23 @@ export async function executeLLMAnalysis(payload: LLMAdapterPayload, adapterType
       imagePayloads.push(imageB64.trim());
     }
 
-    imagePayloads.forEach((imgData) => {
-      const cleanBase64 = imgData.startsWith("data:") ? imgData : `data:image/png;base64,${imgData}`;
-      userParts.push({ type: "image_url", image_url: { url: cleanBase64 } });
-    });
+    const modelNameLower = (customModel || "").toLowerCase();
+    const supportsVision = modelNameLower.includes("vision") || 
+                           modelNameLower.includes("gemini") || 
+                           modelNameLower.includes("gpt-4o") || 
+                           modelNameLower.includes("claude-3") || 
+                           modelNameLower.includes("llava");
+
+    if (imagePayloads.length > 0) {
+      if (supportsVision) {
+        imagePayloads.forEach((imgData) => {
+          const cleanBase64 = imgData.startsWith("data:") ? imgData : `data:image/png;base64,${imgData}`;
+          userParts.push({ type: "image_url", image_url: { url: cleanBase64 } });
+        });
+      } else {
+        userParts[0].text += `\n[안내: 사용자가 이미지를 첨부했으나 현재 검수 모델인 ${customModel}은 시각 분석을 미지원하는 텍스트 전용 모델이므로 이미지는 심사에서 제외되었습니다. 오로지 텍스트 내용만을 엄격히 감수하십시오.]`;
+      }
+    }
 
     messages.push({ role: "user", content: userParts } as any);
 

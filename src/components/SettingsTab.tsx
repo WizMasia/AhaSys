@@ -1,9 +1,9 @@
 /**
  * @license
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: Apache-2.5
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Sliders, 
   Settings, 
@@ -17,25 +17,80 @@ import { useApp } from '../contexts/AppContext';
 export function SettingsTab() {
   const {
     darkMode,
-    draftAdapterType,
-    setDraftAdapterType,
-    draftCustomModel,
-    setDraftCustomModel,
-    draftCustomEndpoint,
-    setDraftCustomEndpoint,
-    draftCustomApiKey,
-    setDraftCustomApiKey,
-    localPreset,
-    otherPreset,
+    adapterType,
+    customModel,
+    customEndpoint,
+    customApiKey,
+    localPreset: initialLocalPreset,
+    otherPreset: initialOtherPreset,
     fetchedModels,
     fetchModelsLoading,
     fetchModelsError,
     settingsSavedSuccess,
-    applyLocalPreset,
-    applyOtherPreset,
     handleFetchModels,
     handleSaveSettings
   } = useApp();
+
+  // Local draft states to prevent global React Context re-renders on every keystroke
+  const [draftAdapterType, setDraftAdapterType] = useState<LLMType>(adapterType);
+  const [draftCustomModel, setDraftCustomModel] = useState<string>(customModel);
+  const [draftCustomEndpoint, setDraftCustomEndpoint] = useState<string>(customEndpoint);
+  const [draftCustomApiKey, setDraftCustomApiKey] = useState<string>(customApiKey);
+  const [localPreset, setLocalPreset] = useState<string>(initialLocalPreset);
+  const [otherPreset, setOtherPreset] = useState<string>(initialOtherPreset);
+
+  // Sync draft states when active settings change
+  useEffect(() => {
+    setDraftAdapterType(adapterType);
+    setDraftCustomModel(customModel);
+    setDraftCustomEndpoint(customEndpoint);
+    setDraftCustomApiKey(customApiKey);
+    setLocalPreset(initialLocalPreset);
+    setOtherPreset(initialOtherPreset);
+  }, [adapterType, customModel, customEndpoint, customApiKey, initialLocalPreset, initialOtherPreset]);
+
+  const applyLocalPreset = (preset: 'ollama' | 'lmstudio') => {
+    setLocalPreset(preset);
+    if (preset === 'ollama') {
+      setDraftCustomEndpoint('http://localhost:11434/v1');
+      setDraftCustomModel('gemma2:9b');
+    } else {
+      setDraftCustomEndpoint('http://localhost:1234/v1');
+      setDraftCustomModel('gemma-2-9b-it');
+    }
+  };
+
+  const applyOtherPreset = (preset: 'openai' | 'openrouter' | 'custom') => {
+    setOtherPreset(preset);
+    if (preset === 'openai') {
+      setDraftCustomEndpoint('https://api.openai.com/v1');
+      setDraftCustomModel('gpt-4o-mini');
+    } else if (preset === 'openrouter') {
+      setDraftCustomEndpoint('https://openrouter.ai/api/v1');
+      setDraftCustomModel('openrouter/free');
+    } else {
+      setDraftCustomEndpoint('');
+      setDraftCustomModel('');
+    }
+  };
+
+  const onSave = () => {
+    handleSaveSettings({
+      adapterType: draftAdapterType,
+      customModel: draftCustomModel,
+      customEndpoint: draftCustomEndpoint,
+      customApiKey: draftCustomApiKey,
+      localPreset,
+      otherPreset
+    });
+  };
+
+  const onFetchModels = async () => {
+    const list = await handleFetchModels(draftCustomEndpoint, draftCustomApiKey);
+    if (list && list.length > 0) {
+      setDraftCustomModel(list[0]);
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -134,7 +189,7 @@ export function SettingsTab() {
               <button
                 type="button"
                 onClick={() => applyLocalPreset("lmstudio")}
-                className={`py-2.5 px-2 rounded-xl border text-xs font-extrabold transition-all cursor-pointer ${localPreset === 'lmstudio' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300 font-black' : 'border-slate-800 bg-slate-905 text-slate-400 hover:text-slate-300'}`}
+                className={`py-2.5 px-2 rounded-xl border text-xs font-extrabold transition-all cursor-pointer ${localPreset === 'lmstudio' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-305 font-black' : 'border-slate-800 bg-slate-905 text-slate-400 hover:text-slate-300'}`}
               >
                 LM Studio 프리셋
               </button>
@@ -157,7 +212,7 @@ export function SettingsTab() {
                   <label className="block text-[11px] text-slate-350 font-bold">로컬 적재 모델 (Model ID)</label>
                   <button
                     type="button"
-                    onClick={handleFetchModels}
+                    onClick={onFetchModels}
                     disabled={fetchModelsLoading}
                     className="py-1 px-2.5 rounded-md bg-[#1d273a] border border-indigo-500/20 text-[10px] text-indigo-300 hover:bg-[#27354f] hover:text-indigo-100 font-bold flex items-center gap-1 cursor-pointer transition-colors"
                   >
@@ -249,7 +304,7 @@ export function SettingsTab() {
                 </div>
               )}
               {otherPreset === "custom" && (
-                <div className="text-rose-400 flex items-start gap-1.5">
+                <div className="text-rose-450 flex items-start gap-1.5">
                   <HelpCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
                   <span>⚠️ OpenAI 및 OpenRouter 이외의 타사 OpenAI 호환 클라우드 LLM 서비스를 연동하시는 경우, 직접 엔드포인트 URL과 지정 모델 ID, API Key를 입력해주셔야 정상 연동됩니다.</span>
                 </div>
@@ -289,7 +344,7 @@ export function SettingsTab() {
                   <label className="block text-[11px] text-slate-350 font-bold">지정 모델 ID (Model ID)</label>
                   <button
                     type="button"
-                    onClick={handleFetchModels}
+                    onClick={onFetchModels}
                     disabled={fetchModelsLoading}
                     className="py-1 px-2.5 rounded-md bg-[#1d273a] border border-indigo-500/20 text-[10px] text-indigo-300 hover:bg-[#27354f] hover:text-indigo-100 font-bold flex items-center gap-1 cursor-pointer transition-colors"
                   >
@@ -347,7 +402,7 @@ export function SettingsTab() {
           <button
             type="button"
             id="settings_save_button"
-            onClick={handleSaveSettings}
+            onClick={onSave}
             className="w-full py-3.5 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-98 transition-all cursor-pointer text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"
           >
             <Save className="w-4 h-4" />

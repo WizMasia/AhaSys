@@ -82,10 +82,7 @@ export default function App() {
     fetchHistory();
     fetchBenchmarkCases();
     
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('benchmark') === 'true' || localStorage.getItem('SHOW_BENCHMARK') === 'true') {
-      setShowBenchmarkTab(true);
-    }
+    setShowBenchmarkTab(false);
   }, [activeTab]);
 
   const fetchHistory = async () => {

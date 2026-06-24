@@ -156,70 +156,33 @@ router.post('/benchmark/run', async (req, res) => {
       let calculatedScore = 100;
       const violations: any[] = [];
 
-      if (c.inputText.includes("치료") || c.inputText.includes("완치") || c.inputText.includes("체지방") || c.inputText.includes("당뇨") || c.inputText.includes("암")) {
-        violations.push({
-          id: `v_b_${c.id}_1`,
-          clause: c.inputText.includes("다이어트") || c.inputText.includes("체지방") ? "식품표시광고법 제8조" : "화장품법 제13조",
-          severity: "High",
-          description: "의약 오인 및 질병 예방 개선 치료 주관 과장",
-          deductionPoints: 15,
-          originalFragment: c.inputText.includes("치료") ? "치료" : "완치",
-          replacement: "건강 밸런스 유지 관리"
-        });
-        calculatedScore -= 15;
-      }
+      retrieved.forEach((r, idx) => {
+        const article = r.article;
+        const matchedKw = article.keywords.find(kw => c.inputText.toLowerCase().includes(kw.toLowerCase())) || "의심 구절";
+        
+        let deduction = 10;
+        let severity: "High" | "Medium" | "Low" = "Medium";
+        if (article.tier === 4) {
+          deduction = 50;
+          severity = "High";
+        } else if (article.tier === 1) {
+          deduction = 15;
+          severity = "High";
+        }
 
-      if (c.inputText.includes("원금") || c.inputText.includes("확정 금리")) {
         violations.push({
-          id: `v_b_${c.id}_2`,
-          clause: "금융소비자보호법 제22조",
-          severity: "High",
-          description: "원금 100% 무손실 및 고금리 확정 보장 기만",
-          deductionPoints: 20,
-          originalFragment: "원금 100% 무손실",
-          replacement: "투자금 실적 배당형 상품 공지"
+          id: `v_b_${c.id}_${idx + 1}`,
+          clause: article.clause,
+          severity,
+          description: `${article.domain} 기준 저촉 의심 관측 (${matchedKw})`,
+          deductionPoints: deduction,
+          originalFragment: matchedKw,
+          replacement: "준법 권장 표현으로 대체"
         });
-        calculatedScore -= 20;
-      }
+        calculatedScore -= deduction;
+      });
 
-      if (c.inputText.includes("대출") || c.inputText.includes("청소년") || c.inputText.includes("급전")) {
-        violations.push({
-          id: `v_b_${c.id}_5`,
-          clause: "금융소비자보호법 제22조 (대출 및 연령제한 규칙)",
-          severity: "High",
-          description: "자격 실증이 미비한 청소년 유도 목적의 불공정 대출 및 급전 광고",
-          deductionPoints: 25,
-          originalFragment: "청소년",
-          replacement: "서민금융진흥원 등 국가 정식 지원 연계 안내"
-        });
-        calculatedScore -= 25;
-      }
-
-      if (c.inputText.includes("리본") || c.inputText.includes("홀로코스트") || c.inputText.includes("우크라이나") || c.inputText.includes("비극") || c.inputText.includes("이태원")) {
-        violations.push({
-          id: `v_b_${c.id}_3`,
-          clause: "형사 참사 악용 예방 가이드라인 (Tier 4)",
-          severity: "High",
-          description: "역사적 글로벌/로컬 비극 대형 재난 참사의 마케팅 목적 악용 기각",
-          deductionPoints: 50,
-          originalFragment: c.inputText.includes("리본") ? "노란 리본" : c.inputText.includes("홀로코스트") ? "홀로코스트" : "이태원",
-          replacement: "따뜻한 가치 실현"
-        });
-        calculatedScore -= 50;
-      }
-
-      if (c.inputText.includes("무독성") || c.inputText.includes("1위") || c.inputText.includes("뽑기") || c.inputText.includes("100% 최강")) {
-        violations.push({
-          id: `v_b_${c.id}_4`,
-          clause: "표시광고공정화법 제3조 (소비자기만금지)",
-          severity: "Medium",
-          description: "소비자 오인 및 근거 부재형 절대적 수치 단정 기만 광고",
-          deductionPoints: 10,
-          originalFragment: c.inputText.includes("무독성") ? "무독성" : "100% 최강",
-          replacement: "규격성 적합 판정 획득"
-        });
-        calculatedScore -= 10;
-      }
+      calculatedScore = Math.max(0, calculatedScore);
 
       const isPass = calculatedScore >= 80;
       if (isPass) passed++; else failed++;

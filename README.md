@@ -1,6 +1,6 @@
 # 🛡️ 아하시스턴트 AI Compliance Review Platform Suite (aHaSys)
 
-> **공정거래위원회(KFTC) 심사 지침 및 대한민국 다각적 법률 결합 실시간 초엄격 준법 심의 통제 플랫폼**
+> **대한민국 다각적 법률 및 광고 관련 규정 결합 실시간 초엄격 준법 심의 통제 플랫폼**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
@@ -12,7 +12,7 @@
 
 ![aHaSys AI Compliance Platform Live Demo Screenshot](./docs/images/demo.png)
 
-**아하시스턴트(aHaSys)**는 대외 공개 예정인 기업 마케팅 문안, 상품 설명서 및 웹사이트 등 다양한 매체 자료가 대한민국 광고 관계 법령 및 공정거래위원회 심사 가이드를 위반하는지 실시간 분석·진단하는 법적 통제 솔루션입니다. 
+**아하시스턴트(aHaSys)**는 대외 공개 예정인 기업 마케팅 문안, 상품 설명서 및 웹사이트 등 다양한 매체 자료가 대한민국 광고 관계 법령 및 표시광고 규정 고시를 위반하는지 실시간 분석·진단하는 법적 통제 솔루션입니다. 
 
 기존의 단순 규정 대조를 넘어, 마케터가 간과하기 쉬운 우회적/간접적 리스크까지 전면 스크리닝하는 **'초엄격 감수(Zero-Tolerance) 통제 파이프라인'**이 내장되어 있습니다.
 

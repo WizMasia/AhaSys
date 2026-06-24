@@ -608,7 +608,7 @@ export default function App() {
           <div class="footer">
             <div style="text-align: left; max-width: 75%;">
               <p style="font-weight: 800; margin: 0 0 4px 0; color: #0f172a;">아하시스턴트 AI 자율 규제 필터 컴플라이언스 센터</p>
-              <p style="margin: 0; font-size: 8px; line-height: 1.3;">본 법무 인증 보고서는 공정거래위원회 심사관 규정 및 주요 특별고시 근거 기준을 토대로 자율 지식 RAG을 결합해 도출되었습니다.</p>
+              <p style="margin: 0; font-size: 8px; line-height: 1.3;">본 법무 인증 보고서는 대한민국 표시광고 관련 법령 및 고시 기준을 토대로 자율 지식 RAG을 결합해 도출되었습니다.</p>
               <p style="margin: 4px 0 0 0; font-size: 8px; color: #94a3b8;">제작자: WizMasia | wizmasia@gmail.com | 본 웹앱은 사용된 기저 솔루션의 저작권 규정에 적극 복속됩니다.</p>
             </div>
             <div style="width: 120px;" class="footer-sign">
@@ -794,7 +794,7 @@ export default function App() {
             🛡️
           </div>
           <div>
-            <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded font-black tracking-widest uppercase group-hover:text-indigo-300 transition-colors">KFTC RAG Platform Suite</span>
+            <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded font-black tracking-widest uppercase group-hover:text-indigo-300 transition-colors">Compliance RAG Platform Suite</span>
             <h1 className={`text-base font-black flex items-center gap-1.5 leading-none mt-1 ${darkMode ? 'text-slate-100' : 'text-slate-950'}`}>
               <span>아하시스턴트 AI (aHaSys)</span>
               <span className="text-[11px] text-slate-500 font-normal">v3.5.2 Pro</span>
@@ -1193,7 +1193,7 @@ export default function App() {
             <div className="pt-4 border-t border-slate-300 mt-4 text-[9px] flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
               <div className="space-y-0.5 text-left text-slate-500">
                 <p className="font-extrabold text-slate-800">아하시스턴트 AI 자율 규제 필터 컴플라이언스 센터</p>
-                <p className="text-[8px]">본 법무 인증 보고서는 공정거래위원회 심사관 규정 및 주요 특별고시 근거 기준을 토대로 자율 지식 RAG을 결합해 도출되었습니다.</p>
+                <p className="text-[8px]">본 법무 인증 보고서는 대한민국 표시광고 관련 법령 및 고시 기준을 토대로 자율 지식 RAG을 결합해 도출되었습니다.</p>
               </div>
               <div className="text-center shrink-0">
                 <p className="font-semibold border-b border-slate-200 pb-1 px-2 text-slate-400">자율심의단장 (대인)</p>

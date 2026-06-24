@@ -437,15 +437,16 @@ export async function performAnalysis(params: {
 - Compliance Score: ${fs.score}`;
   }).join('\n\n');
 
-  const socialArticles = REGULATORY_LIBRARY.filter(article => article.tier === 4);
-  const socialLawsContext = socialArticles.map(article => `[${article.clause}] - ${article.text}`).join('\n\n');
+  const fullLibraryContext = REGULATORY_LIBRARY.map(article => {
+    return `[${article.clause}] (Tier ${article.tier}) - ${article.text}`;
+  }).join('\n\n');
 
-  const systemInstructionLegal = getSystemInstruction(matchedLawsContext, fewShotContext);
-  const systemInstructionSocial = `${getSocialControversyInstruction()}\n\n[참조 법령 및 가이드라인]\n${socialLawsContext}`;
-  const systemInstructionEsg = getEsgGreenwashingInstruction();
-  const systemInstructionPrivacy = getPrivacyProtectionInstruction();
-  const systemInstructionYouth = getYouthProtectionInstruction();
-  const systemInstructionCopyright = getCopyrightProtectionInstruction();
+  const systemInstructionLegal = getSystemInstruction(fullLibraryContext, fewShotContext);
+  const systemInstructionSocial = `${getSocialControversyInstruction()}\n\n[참조 법령 및 가이드라인]\n${fullLibraryContext}`;
+  const systemInstructionEsg = `${getEsgGreenwashingInstruction()}\n\n[참조 법령 및 가이드라인]\n${fullLibraryContext}`;
+  const systemInstructionPrivacy = `${getPrivacyProtectionInstruction()}\n\n[참조 법령 및 가이드라인]\n${fullLibraryContext}`;
+  const systemInstructionYouth = `${getYouthProtectionInstruction()}\n\n[참조 법령 및 가이드라인]\n${fullLibraryContext}`;
+  const systemInstructionCopyright = `${getCopyrightProtectionInstruction()}\n\n[참조 법령 및 가이드라인]\n${fullLibraryContext}`;
 
   let promptTokens = 0;
   let completionTokens = 0;
@@ -456,7 +457,7 @@ export async function performAnalysis(params: {
     textStr,
     imageB64,
     imagesB64,
-    systemInstruction: getOrchestratorRoutingInstruction(),
+    systemInstruction: `${getOrchestratorRoutingInstruction()}\n\n[참조 준법 가이드라인 데이터베이스]\n${fullLibraryContext}`,
     customModel,
     customEndpoint,
     customApiKey,

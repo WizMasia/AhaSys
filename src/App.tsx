@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ShieldCheck, 
   Moon, 
@@ -18,7 +18,8 @@ import {
   Github
 } from 'lucide-react';
 
-import { Stage, LLMType, LLMConfig, SystemAnalysisResult, Violation, PastCase, BenchmarkCase } from './types';
+import type { BenchmarkCase } from './types';
+import type { HistoryItem } from './types/api';
 import { useApp } from './contexts/AppContext';
 import { apiClient } from './services/api';
 import { SettingsTab } from './components/SettingsTab';
@@ -26,11 +27,16 @@ import { AboutTab } from './components/AboutTab';
 import { BenchmarkTab } from './components/BenchmarkTab';
 import { HistoryTab } from './components/HistoryTab';
 import { ReviewTab } from './components/ReviewTab';
-
-export const SCORE_THRESHOLD_EXCELLENT = 95;
-export const SCORE_THRESHOLD_GOOD = 80;
-export const SCORE_THRESHOLD_NORMAL = 60;
-export const SCORE_THRESHOLD_WARNING = 40;
+import { useAnalysisRunner } from './hooks/useAnalysisRunner';
+import { useBenchmarkRunner } from './hooks/useBenchmarkRunner';
+import { useImageUploads } from './hooks/useImageUploads';
+import {
+  buildMarkdownReport,
+  getCsatGradeInfo,
+  getScoreColor,
+  getSeverityBadge,
+  makeLawGoLink,
+} from './utils/report';
 
 export default function App() {
   const llm = useApp();
@@ -43,24 +49,22 @@ export default function App() {
   const [inputText, setInputText] = useState<string>("");
   const [websiteUrl, setWebsiteUrl] = useState<string>("");
   const [additionalContext, setAdditionalContext] = useState<string>("");
-  const [uploadedImages, setUploadedImages] = useState<{file: File, b64: string}[]>([]);
-  const [dragActive, setDragActive] = useState<boolean>(false);
+  const {
+    uploadedImages,
+    dragActive,
+    handleDrag,
+    handleDrop,
+    handleImageChange,
+    clearAllImages,
+    removeUploadedImage,
+  } = useImageUploads();
   const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
-
-  // Result States
-  const [loading, setLoading] = useState<boolean>(false);
-  const [analysisProgress, setAnalysisProgress] = useState<number>(0);
-  const [analysisStatusMsg, setAnalysisStatusMsg] = useState<string>("");
-  const [analysisResult, setAnalysisResult] = useState<SystemAnalysisResult | null>(null);
-  const [errorText, setErrorText] = useState<string | null>(null);
-  const [localLlmErrorText, setLocalLlmErrorText] = useState<string | null>(null);
-  const [analysisMode, setAnalysisMode] = useState<'optimized' | 'full'>('optimized');
 
   // Special UI alerts for Gemini API key validation or Quota exhaustion
   const [showKeyAlert, setShowKeyAlert] = useState<boolean>(false);
 
   // History ledger (from backend feed)
-  const [historyItems, setHistoryItems] = useState<any[]>([]);
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [historySearchQuery, setHistorySearchQuery] = useState<string>("");
   const [historyCategoryFilter, setHistoryCategoryFilter] = useState<string>("all");
   const [historyVerdictFilter, setHistoryVerdictFilter] = useState<string>("all");
@@ -68,15 +72,6 @@ export default function App() {
   // Benchmarking states
   const [showBenchmarkTab, setShowBenchmarkTab] = useState<boolean>(false);
   const [benchmarkCases, setBenchmarkCases] = useState<BenchmarkCase[]>([]);
-  const [benchmarkRunning, setBenchmarkRunning] = useState<boolean>(false);
-  const [benchmarkProgress, setBenchmarkProgress] = useState<number>(0);
-  const [benchmarkStatusMsg, setBenchmarkStatusMsg] = useState<string>("");
-  const [benchmarkStats, setBenchmarkStats] = useState<{
-    passed: number;
-    failed: number;
-    total: number;
-    averageLatency: number;
-  } | null>(null);
 
   // Load history & benchmark on init
   useEffect(() => {
@@ -98,60 +93,49 @@ export default function App() {
   const fetchBenchmarkCases = async () => {
     try {
       const data = await apiClient.getBenchmarkCases();
-      setBenchmarkCases(data.map((c: any) => ({ ...c, status: 'pending' })));
+      setBenchmarkCases(data.map((c) => ({ ...c, status: 'pending' })));
     } catch {
       console.warn("Failed to load benchmark index.");
     }
   };
 
-  // Image upload helpers
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
+  const {
+    loading,
+    analysisProgress,
+    analysisStatusMsg,
+    analysisResult,
+    setAnalysisResult,
+    errorText,
+    setErrorText,
+    localLlmErrorText,
+    analysisMode,
+    setAnalysisMode,
+    triggerAnalysis,
+  } = useAnalysisRunner({
+    inputText,
+    websiteUrl,
+    additionalContext,
+    uploadedImages,
+    adapterType: llm.adapterType,
+    customModel: llm.customModel,
+    customEndpoint: llm.customEndpoint,
+    customApiKey: llm.customApiKey,
+    analysisMode: 'optimized',
+    refreshHistory: fetchHistory,
+  });
 
-  const processFiles = (files: FileList) => {
-    Array.from(files).forEach(file => {
-      if (!file.type.startsWith('image/')) return;
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUploadedImages(prev => {
-          const isDup = prev.some(item => item.file.name === file.name && item.file.size === file.size);
-          if (isDup) return prev;
-          return [...prev, { file, b64: reader.result as string }];
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      processFiles(e.dataTransfer.files);
-    }
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      processFiles(e.target.files);
-    }
-  };
-
-  const removeUploadedImage = (index: number) => {
-    setUploadedImages(prev => prev.filter((_, idx) => idx !== index));
-  };
-
-  const clearAllImages = () => {
-    setUploadedImages([]);
-  };
+  const {
+    benchmarkRunning,
+    benchmarkProgress,
+    benchmarkStatusMsg,
+    benchmarkStats,
+    triggerBenchmark,
+  } = useBenchmarkRunner({
+    adapterType: llm.adapterType,
+    customModel: llm.customModel,
+    setBenchmarkCases,
+    setErrorText,
+  });
 
   const handleCopyMarkdown = () => {
     if (!analysisResult) return;
@@ -162,124 +146,7 @@ export default function App() {
     });
   };
 
-  const getCsatGradeInfo = (score: number) => {
-    if (score >= SCORE_THRESHOLD_EXCELLENT) {
-      return { 
-        grade: 1, 
-        label: "🥇 1등급 (최우수)", 
-        isPassed: true, 
-        color: "bg-emerald-500/10 border-emerald-500/30 text-emerald-450 dark:text-emerald-400", 
-        hasWarning: false,
-        desc: "대한민국 광고 위법 자율성 최상위 등급입니다. 특정한 가처분이나 과장 표현 위반 조사 지점이 발견되지 않았습니다."
-      };
-    } else if (score >= SCORE_THRESHOLD_GOOD) {
-      return { 
-        grade: 2, 
-        label: "🥈 2등급 (우수 - 조건부 승인)", 
-        isPassed: true, 
-        color: "bg-teal-500/10 border-teal-500/30 text-teal-450 dark:text-teal-400", 
-        hasWarning: false,
-        desc: "일부 조항 대조 시 경미한 위반 가능 영역이나 근거 자료 출처 증명서 배포가 보류 권장되는 지점이 검출되었으나, 준법 권장사항을 수용 조율할 시 충분히 안전하게 통과 가능합니다."
-      };
-    } else if (score >= SCORE_THRESHOLD_NORMAL) {
-      return { 
-        grade: 3, 
-        label: "🥉 3등급 (보통 - 전면 재검토 요망)", 
-        isPassed: false, 
-        color: "bg-amber-500/10 border-amber-500/30 text-amber-450 dark:text-amber-400", 
-        hasWarning: true,
-        desc: "허위 기만광고의 소지가 있어 공정거래법 저촉 위험이 현저히 농후합니다. 벌점 감쇄에 따른 법정 분쟁 및 행정 처분 가능성이 존재하므로, 즉시 안전한 교정 대안안으로 전면 순화하여 배포하십시오."
-      };
-    } else if (score >= SCORE_THRESHOLD_WARNING) {
-      return { 
-        grade: 4, 
-        label: "⚠️ 4등급 (경고 - 제재 위험군)", 
-        isPassed: false, 
-        color: "bg-orange-500/10 border-orange-500/30 text-orange-450 dark:text-orange-400", 
-        hasWarning: true,
-        desc: "소비자 오인 야기 소지가 극히 다분한 다수의 특별법 저촉이 탐색되었습니다. 관계 당국의 직권 조사와 정정 광고 게재 명령이 촉발될 수 있는 수준이오니 사안을 즉각 폐기하고 리디렉션하십시오."
-      };
-    } else {
-      return { 
-        grade: 5, 
-        label: "🚨 5등급 (위험 - 즉각 수정 의무)", 
-        isPassed: false, 
-        color: "bg-rose-500/10 border-rose-500/30 text-rose-450 dark:text-rose-400", 
-        hasWarning: true,
-        desc: "참사/비극 오용 및 특별법 규정 위배가 극심하여 행정 고발 및 형사 제재 사유에 해당할 소지가 100% 농후합니다. 대외 유포를 당장 전면 중지하십시오."
-      };
-    }
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= SCORE_THRESHOLD_EXCELLENT) return 'border-emerald-500 text-emerald-400';
-    if (score >= SCORE_THRESHOLD_GOOD) return 'border-teal-500 text-teal-400';
-    if (score >= SCORE_THRESHOLD_NORMAL) return 'border-amber-500 text-amber-400';
-    if (score >= SCORE_THRESHOLD_WARNING) return 'border-orange-500 text-orange-400';
-    return 'border-rose-500 text-rose-450 dark:text-rose-400';
-  };
-
-  const getSeverityBadge = (severity: 'High' | 'Medium' | 'Low') => {
-    if (severity === 'High') return 'bg-rose-500/10 text-rose-400 border border-rose-500/30';
-    if (severity === 'Medium') return 'bg-orange-500/10 text-orange-405 border border-orange-500/30';
-    return 'bg-amber-500/10 text-amber-400 border border-amber-500/30';
-  };
-
-  const getMarkdownReportString = (): string => {
-    if (!analysisResult) return "";
-    let str = `# 🛡️ 광고 법률 자율 무결성 종합 준법 자문보고서\n\n`;
-    const gradeInfo = getCsatGradeInfo(analysisResult.score);
-    str += `## 1. 종합 심의 판정 요약\n`;
-    str += `* **종합 안전 벌점**: **${analysisResult.score}점** / 100점 만점\n`;
-    str += `* **최종 준법 성적**: **${gradeInfo.label}** (${gradeInfo.isPassed ? "합격 - 통과 대상" : "기각 - 반려 대상"})\n`;
-    str += `* **기저 인프라 엔진**: \`${analysisResult.modelUsed || llm.customModel || 'Gemini'}\`\n\n`;
-    str += `> 💡 **심의 요지**: ${gradeInfo.desc}\n\n`;
-
-    str += `## 2. 심의 검수 대상 원안 메타 정보\n`;
-    str += `* **추론 제품 분류군**: \`${analysisResult.parsedMeta.productType}\`\n`;
-    str += `* **조사 특별 법령 영역**: \`${analysisResult.parsedMeta.regulatoryDomain}\`\n`;
-    str += `* **유통 예정 마케팅 매체**: \`${analysisResult.parsedMeta.channels}\`\n`;
-    str += `* **주요 타겟 세그먼트**: \`${analysisResult.parsedMeta.targets}\`\n`;
-    if (analysisResult.agentsActivated && analysisResult.agentsActivated.length > 0) {
-      str += `* **참여 심의 서브 에이전트**: ${analysisResult.agentsActivated.map(a => `\`${a}\``).join(', ')}\n`;
-    }
-    str += `\n`;
-
-    str += `## 3. 세부 위법 제재 조항 검출 및 감점 내역 (${analysisResult.violations.length}건)\n`;
-    if (analysisResult.violations.length === 0) {
-      str += `> ✔ **축하합니다! 위반 검출 사안이 없어 100% 무해성으로 통과 승인되었습니다.**\n\n`;
-    } else {
-      analysisResult.violations.forEach((v, index) => {
-        str += `### [위반 ${index + 1}] ${v.clause}\n`;
-        str += `* **감점**: **-${v.deductionPoints}점** | **위험도**: \`${v.severity}\`\n`;
-        str += `* **위법 위험 소견**: ${v.description}\n`;
-        str += `* **문제 발견 원안 구절**: \`"${v.originalFragment}"\`\n`;
-        str += `* **법적 무해 정정 대안안**: **\`"${v.replacement}"\`**\n\n`;
-      });
-    }
-
-    if (analysisResult.imageAlternativeProposal) {
-      str += `## 4. 이미지 비주얼 멀티모달 Vision 정밀 교정 보고\n`;
-      str += `* **Detected Visual Copys (OCR 검출 텍스트)**: ${analysisResult.imageAlternativeProposal.detectedVisualCopys?.join(', ') || '없음'}\n`;
-      str += `* **Visual Violations (시각적 리스크 소견)**: ${analysisResult.imageAlternativeProposal.visualViolations?.join(' / ') || '없음'}\n\n`;
-      str += `### 🎨 이미지 우회 대안 처방 시안 가이드라인\n`;
-      str += `> ${analysisResult.imageAlternativeProposal.alternativeVisualDraft}\n\n`;
-    }
-
-    str += `---\n*본 보고서의 유권 해석 최종 권리는 규제 당국의 심사위원에 귀속되므로 법률 자문 대조용으로 활용해 주십시오.*`;
-    return str;
-  };
-
-  const makeLawGoLink = (clause: string) => {
-    let lawName = "표시광고의공정화에관한법률";
-    if (clause) {
-      const match = clause.match(/^([가-힣\s]+법)/);
-      if (match) {
-        lawName = match[1].replace(/\s+/g, "");
-      }
-    }
-    return `https://www.law.go.kr/법령/${encodeURIComponent(lawName)}`;
-  };
+  const getMarkdownReportString = (): string => buildMarkdownReport(analysisResult, llm.customModel);
 
   const handleOpenPrintTab = () => {
     if (!analysisResult) return;
@@ -626,149 +493,6 @@ export default function App() {
     printWindow.document.close();
   };
 
-  // Run Realtime Auditing Analysis
-  const triggerAnalysis = async (textToUse: string = inputText) => {
-    const hasImages = uploadedImages.length > 0;
-    if (!textToUse.trim() && !hasImages && !websiteUrl.trim()) {
-      setErrorText("심사할 원문 텍스트나 웹사이트 URL을 입력하거나 검수할 이미지 파일을 한 개 이상 올려주십시오.");
-      return;
-    }
-    setErrorText(null);
-    setLocalLlmErrorText(null);
-    setLoading(true);
-    setAnalysisProgress(3);
-    setAnalysisStatusMsg("오케스트레이터 에이전트 기동 및 광고 원안/이미지 파싱 중...");
-
-    const progressInterval = setInterval(() => {
-      setAnalysisProgress((prev) => {
-        if (prev >= 95) {
-          return prev;
-        }
-        const remains = 100 - prev;
-        const step = Math.max(1, Math.round(remains * 0.12));
-        const next = Math.min(95, prev + step);
-
-        if (next < 20) {
-          setAnalysisStatusMsg("1단계: 오케스트레이터 에이전트 기동 및 메타 정보 추출 중...");
-        } else if (next < 40) {
-          setAnalysisStatusMsg("2단계: 하이브리드 RAG 엔진 가동 및 대한민국 법규/판례 키워드 대조 중...");
-        } else if (next < 65) {
-          setAnalysisStatusMsg("3단계: 오케스트레이터 에이전트 분석 및 다중 도메인 에이전트 라우팅 연산 중...");
-        } else if (next < 85) {
-          setAnalysisStatusMsg("4단계: 다중 전문 에이전트 병렬 협동 검정 구동 중 (법률/사회/ESG/개인정보/청소년)...");
-        } else {
-          setAnalysisStatusMsg("5단계: 검출 조항 가중치 집계 및 마케팅 안심 순화 대체 텍스트 카피 도출 중...");
-        }
-        return next;
-      });
-    }, 450);
-
-    try {
-      const activeApiKey = (typeof llm.customApiKey === 'string' && llm.customApiKey.trim());
-      const finalMode = activeApiKey ? analysisMode : 'optimized';
-
-      const data = await apiClient.analyzeCompliance({
-        text: textToUse,
-        url: websiteUrl,
-        context: additionalContext,
-        imagePresent: uploadedImages.length > 0,
-        images: uploadedImages.map(img => img.b64 as string),
-        adapter: llm.adapterType,
-        modelName: llm.customModel,
-        endpoint: llm.customEndpoint,
-        apiKey: llm.customApiKey,
-        analysisMode: finalMode
-      } as any);
-
-      if (data.error) {
-        setErrorText(data.message || "심의 과정 도중 에러가 보고되었습니다.");
-      } else {
-        setAnalysisResult(data);
-        if (data.localLlmError) {
-          setLocalLlmErrorText(data.localLlmError);
-        }
-        fetchHistory(); // Refresh history timeline node on successful loop
-      }
-    } catch (err: any) {
-      setErrorText(err.message || "서버 컴플라이언스 엔진 연결 중 심각한 예외가 촉발해 통신이 중단되었습니다.");
-    } finally {
-      clearInterval(progressInterval);
-      setAnalysisProgress(100);
-      setAnalysisStatusMsg("심의 통과 평정 완료!");
-      setLoading(false);
-    }
-  };
-
-  // Run Batch Benchmark 1,000 cases mockup simulation
-  const triggerBenchmark = async () => {
-    setBenchmarkRunning(true);
-    setBenchmarkProgress(0);
-    setBenchmarkStatusMsg("벤치마크 엔진 기동 중...");
-    
-    // Setting simulation status
-    setBenchmarkCases(prev => prev.map(c => ({ ...c, status: 'running' })));
-
-    const progressInterval = setInterval(() => {
-      setBenchmarkProgress((prev) => {
-        if (prev >= 98) {
-          return prev;
-        }
-        const remains = 100 - prev;
-        const step = Math.max(1, Math.round(remains * 0.15));
-        const next = Math.min(98, prev + step);
-
-        if (next < 25) {
-          setBenchmarkStatusMsg("1단계: 무작위 100건 심의 대상 케이스 샘플 추출 중...");
-        } else if (next < 55) {
-          setBenchmarkStatusMsg("2단계: 다중 스레드 병렬 자율 법률 매핑 시뮬레이션 가동 중...");
-        } else if (next < 80) {
-          setBenchmarkStatusMsg("3단계: 준법 위반 조항 연계 판정 및 감점 가중치 연산 중...");
-        } else {
-          setBenchmarkStatusMsg("4단계: 물리 보고서 마크다운 디렉토리 파티셔닝 적재 중...");
-        }
-        return next;
-      });
-    }, 150);
-    
-    try {
-      const data = await apiClient.runBenchmark();
-      clearInterval(progressInterval);
-      setBenchmarkProgress(100);
-      setBenchmarkStatusMsg("벤치마크 검정 완료!");
-
-      // Update benchmark cases with the actual run cases
-      const runCases = data.testRuns.map((tr: any) => ({
-        id: tr.id,
-        name: tr.name,
-        inputText: tr.inputText,
-        expectedViolations: tr.violationsCount,
-        status: tr.isPass ? 'success' : 'failed' as any,
-        result: {
-          score: tr.score,
-          violationsCount: tr.violationsCount,
-          meta: { productType: "자동 추론", targets: "혼합 세그먼트", regulatoryDomain: "계통 특별법", channels: "옴니채널" },
-          timeMs: tr.timeMs,
-          adapterUsed: `${llm.adapterType} (${llm.customModel})`
-        }
-      }));
-      setBenchmarkCases(runCases);
-
-      setBenchmarkStats({
-        passed: data.passed,
-        failed: data.failed,
-        total: data.total,
-        averageLatency: Math.round(data.testRuns.reduce((acc: number, cur: any) => acc + cur.timeMs, 0) / data.total)
-      });
-    } catch {
-      clearInterval(progressInterval);
-      setBenchmarkProgress(0);
-      setBenchmarkStatusMsg("벤치마크 수행 실패");
-      setErrorText("벤치마크 배치 오케스트레이션 수행 결과 디렉토리 파티셔닝 중 장애가 발생했습니다.");
-    } finally {
-      setBenchmarkRunning(false);
-    }
-  };
-
   const clearHistoryLedger = async () => {
     try {
       await apiClient.clearHistory();
@@ -779,7 +503,7 @@ export default function App() {
     }
   };
 
-  const restoreHistoryResult = (item: any) => {
+  const restoreHistoryResult = (item: HistoryItem) => {
     setAnalysisResult(item.result || null);
     setInputText(item.inputText || "");
     setErrorText(null);

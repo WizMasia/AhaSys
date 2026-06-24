@@ -12,9 +12,10 @@ import {
   FileText 
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
+import type { HistoryItem } from '../types/api';
 
 interface HistoryTabProps {
-  historyItems: any[];
+  historyItems: HistoryItem[];
   historySearchQuery: string;
   setHistorySearchQuery: (query: string) => void;
   historyCategoryFilter: string;
@@ -23,7 +24,7 @@ interface HistoryTabProps {
   setHistoryVerdictFilter: (filter: string) => void;
   clearHistoryLedger: () => Promise<void>;
   setInputText: (text: string) => void;
-  restoreHistoryResult: (item: any) => void;
+  restoreHistoryResult: (item: HistoryItem) => void;
   getCsatGradeInfo: (score: number) => {
     grade: number;
     isPassed: boolean;

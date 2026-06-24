@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { LLMType } from '../types';
 import { apiClient } from '../services/api';
+import { DEFAULT_GEMINI_MODEL, DEFAULT_OLLAMA_ENDPOINT, LLM_SETTINGS_STORAGE_KEY } from '../constants/llm';
 
 export interface AppContextType {
   darkMode: boolean;
@@ -54,7 +55,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState<'review' | 'about' | 'benchmark' | 'history' | 'settings'>('review');
 
   const [adapterType, setAdapterType] = useState<LLMType>(LLMType.GEMINI);
-  const [customModel, setCustomModel] = useState<string>('gemini-3.5-flash');
+  const [customModel, setCustomModel] = useState<string>(DEFAULT_GEMINI_MODEL);
   const [customEndpoint, setCustomEndpoint] = useState<string>('');
   const [customApiKey, setCustomApiKey] = useState<string>('');
 
@@ -67,7 +68,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [fetchModelsError, setFetchModelsError] = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('COMPLIANCE_LLM_SETTINGS');
+    const saved = localStorage.getItem(LLM_SETTINGS_STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -91,7 +92,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLocalPreset(config.localPreset);
     setOtherPreset(config.otherPreset);
 
-    localStorage.setItem('COMPLIANCE_LLM_SETTINGS', JSON.stringify(config));
+    localStorage.setItem(LLM_SETTINGS_STORAGE_KEY, JSON.stringify(config));
 
     setSettingsSavedSuccess(true);
     setTimeout(() => setSettingsSavedSuccess(false), 4000);
@@ -102,7 +103,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setFetchModelsError(null);
     setFetchedModels([]);
 
-    const ep = endpoint && endpoint.trim() ? endpoint.trim() : 'http://localhost:11434/v1';
+    const ep = endpoint && endpoint.trim() ? endpoint.trim() : DEFAULT_OLLAMA_ENDPOINT;
     const cleanEp = ep.endsWith('/') ? ep.slice(0, -1) : ep;
     const isLocalhost = ep.includes('localhost') || ep.includes('127.0.0.1');
 
@@ -145,7 +146,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const data = await apiClient.fetchProxyModels(ep, apiKey);
       if (data.success && Array.isArray(data.models)) {
-        setFetchedModels(data.models);
+        setFetchedModels([...data.models]);
         setFetchModelsLoading(false);
         return data.models;
       } else {

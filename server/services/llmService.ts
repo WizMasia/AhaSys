@@ -274,7 +274,7 @@ export async function executeLLMAnalysis(payload: LLMAdapterPayload, adapterType
     }
 
     const response = await dynamicAi.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: { parts },
       config: { systemInstruction, responseMimeType: "application/json" }
     });
@@ -755,7 +755,7 @@ export async function performAnalysis(params: {
 
   const duration = Date.now() - startTime;
   finalResultData.analysisTimeMs = duration;
-  finalResultData.modelUsed = customModel && customModel.trim() ? customModel.trim() : (adapterType === 'GEMINI' || !adapterType ? 'gemini-3.5-flash' : 'llama3');
+  finalResultData.modelUsed = customModel && customModel.trim() ? customModel.trim() : (adapterType === 'GEMINI' || !adapterType ? 'gemini-2.5-flash' : 'llama3');
 
   // Attach token consumption analytics to finalResultData
   if (usageMetadata) {

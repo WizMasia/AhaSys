@@ -24,6 +24,25 @@ import Markdown from 'react-markdown';
 import { SystemAnalysisResult } from '../types';
 import { useApp } from '../contexts/AppContext';
 
+const getPredictedAgents = (text: string, hasImages: boolean) => {
+  const agents = ["LEGAL (법률)", "SOCIAL (사회적 논란/재난)"];
+  const t = (text || "").toLowerCase();
+  
+  if (t.includes("친환경") || t.includes("무독성") || t.includes("그린") || t.includes("esg") || t.includes("탄소") || t.includes("오염")) {
+    agents.push("ESG (그린워싱)");
+  }
+  if (t.includes("개인정보") || t.includes("보안") || t.includes("비밀번호") || t.includes("주민번호") || t.includes("해킹") || t.includes("도용")) {
+    agents.push("PRIVACY (개인정보)");
+  }
+  if (t.includes("청소년") || t.includes("급전") || t.includes("대출") || t.includes("게임") || t.includes("확률") || t.includes("뽑기") || t.includes("성인") || t.includes("아동")) {
+    agents.push("YOUTH (청소년)");
+  }
+  if (t.includes("특허") || t.includes("상표") || t.includes("카피") || t.includes("라이선스") || t.includes("저작권") || t.includes("저작") || t.includes("도용") || hasImages) {
+    agents.push("COPYRIGHT (지식재산권)");
+  }
+  return agents;
+};
+
 interface ReviewTabProps {
   errorText: string | null;
   setErrorText: (err: string | null) => void;
@@ -369,7 +388,16 @@ export function ReviewTab({
                   title: "4단계: 다중 전문 에이전트 병렬 협동 검정 구동",
                   desc: "LEGAL, SOCIAL, ESG, PRIVACY, YOUTH, COPYRIGHT 병렬 심의",
                   completed: analysisProgress >= 85,
-                  running: analysisProgress >= 65 && analysisProgress < 85
+                  running: analysisProgress >= 65 && analysisProgress < 85,
+                  extraInfo: (analysisProgress >= 65) ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {getPredictedAgents(inputText || websiteUrl, uploadedImages.length > 0).map((ag, idx) => (
+                        <span key={idx} className="text-[9px] bg-slate-900 border border-slate-800/80 text-indigo-300 px-2 py-0.5 rounded-md font-mono font-bold">
+                          • {ag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null
                 },
                 {
                   id: 5,
@@ -380,6 +408,7 @@ export function ReviewTab({
                 }
               ].map((step) => {
                 const isPending = !step.completed && !step.running;
+                const hasExtraInfo = 'extraInfo' in step && step.extraInfo;
                 return (
                   <div 
                     key={step.id} 
@@ -409,6 +438,7 @@ export function ReviewTab({
                     <div className="flex-1 space-y-0.5">
                       <h5 className="font-extrabold text-xs leading-none">{step.title}</h5>
                       <p className="text-[10px] text-slate-500 leading-tight">{step.desc}</p>
+                      {hasExtraInfo && (step as any).extraInfo}
                     </div>
                     <div className="shrink-0 text-[10px] font-black uppercase tracking-wider">
                       {step.completed ? (

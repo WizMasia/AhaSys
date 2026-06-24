@@ -103,7 +103,7 @@ export function retrieveGuidelines(text: string): { article: LawArticle; score: 
 
   // Scannable keyword overrides (Special scanning for Tier 4 to protect against Semantic Dilution)
   let forcingHighT4 = false;
-  const T4TriggerKeywords = ["세월호", "5.18", "holocaust", "홀로코스트", "우크라이나", "9/11", "이태원", "전쟁", "테러", "난민"];
+  const T4TriggerKeywords = ["세월호", "5.18", "5/18", "5/15", "5/20", "holocaust", "홀로코스트", "우크라이나", "9/11", "이태원", "전쟁", "테러", "난민", "단테", "탱크", "나수", "단원고", "광주"];
   if (T4TriggerKeywords.some(kw => textLower.includes(kw))) {
     forcingHighT4 = true;
   }

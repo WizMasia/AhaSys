@@ -15,6 +15,8 @@ import { useApp } from '../contexts/AppContext';
 
 interface BenchmarkTabProps {
   benchmarkRunning: boolean;
+  benchmarkProgress: number;
+  benchmarkStatusMsg: string;
   benchmarkStats: {
     passed: number;
     failed: number;
@@ -27,6 +29,8 @@ interface BenchmarkTabProps {
 
 export function BenchmarkTab({
   benchmarkRunning,
+  benchmarkProgress,
+  benchmarkStatusMsg,
   benchmarkStats,
   benchmarkCases,
   triggerBenchmark
@@ -84,6 +88,21 @@ export function BenchmarkTab({
         </div>
       </div>
 
+      {benchmarkRunning && (
+        <div className={`p-6 rounded-3xl border space-y-4 transition-all duration-300 ${darkMode ? 'bg-[#0f1524]/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <span className="text-xs font-black text-indigo-400 uppercase tracking-wider">{benchmarkStatusMsg || '무작위 100건 검정 진행 중...'}</span>
+            <span className="text-xs font-bold font-mono text-slate-400">{benchmarkProgress}% 완료</span>
+          </div>
+          <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 border border-slate-700/30">
+            <div 
+              className="bg-gradient-to-r from-indigo-500 via-purple-600 to-amber-500 h-2 rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${benchmarkProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {benchmarkStats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div className={`p-4 rounded-2xl border text-center ${darkMode ? 'bg-[#0f1524] border-slate-800' : 'bg-white border-slate-200'}`}>
@@ -105,6 +124,57 @@ export function BenchmarkTab({
             <span className="block text-[10px] text-slate-500 uppercase font-bold mb-1">평균 분석 지연속도 (Latency)</span>
             <span className="text-2xl font-black text-indigo-400">{benchmarkStats.averageLatency} ms</span>
             <span className="block text-[9px] text-slate-500 mt-1">Multi-Threading Concurrency</span>
+          </div>
+        </div>
+      )}
+
+      {benchmarkCases && benchmarkCases.length > 0 && (
+        <div className={`p-6 rounded-3xl border ${darkMode ? 'bg-[#0f1524] border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+          <h4 className="text-sm font-black mb-4">테스트 케이스 검정 상세 목록 ({benchmarkCases.length}건)</h4>
+          <div className="max-h-96 overflow-y-auto space-y-2 pr-2">
+            {benchmarkCases.map((c) => (
+              <div 
+                key={c.id} 
+                className={`p-3 rounded-xl border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition-colors ${
+                  c.status === 'success' 
+                    ? (darkMode ? 'bg-emerald-950/20 border-emerald-900/30' : 'bg-emerald-50/50 border-emerald-200/50')
+                    : c.status === 'failed'
+                    ? (darkMode ? 'bg-rose-950/20 border-rose-900/30' : 'bg-rose-50/50 border-rose-200/50')
+                    : c.status === 'running'
+                    ? (darkMode ? 'bg-indigo-950/25 border-indigo-900/35 animate-pulse' : 'bg-indigo-50/50 border-indigo-200/50 animate-pulse')
+                    : (darkMode ? 'bg-slate-900/40 border-slate-800/40' : 'bg-slate-50 border-slate-200')
+                }`}
+              >
+                <div className="space-y-1 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded">{c.id}</span>
+                    <span className="font-bold text-xs">{c.name}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 line-clamp-1">{c.inputText}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {c.status === 'success' && c.result && (
+                    <div className="flex items-center gap-2 text-right">
+                      <span className="text-[10px] text-slate-500 font-mono">{c.result.timeMs}ms</span>
+                      <span className={`text-xs font-black ${c.result.score >= 80 ? 'text-emerald-450 dark:text-emerald-400' : 'text-rose-450 dark:text-rose-400'}`}>
+                        {c.result.score}점 ({c.result.score >= 80 ? '합격' : '반려'})
+                      </span>
+                    </div>
+                  )}
+                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${
+                    c.status === 'success' 
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : c.status === 'failed'
+                      ? 'bg-rose-500/20 text-rose-400'
+                      : c.status === 'running'
+                      ? 'bg-indigo-500/20 text-indigo-400'
+                      : 'bg-slate-500/20 text-slate-400'
+                  }`}>
+                    {c.status === 'success' ? '완료' : c.status === 'failed' ? '반려' : c.status === 'running' ? '검정 중' : '대기'}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -558,6 +558,19 @@ export function ReviewTab({
                     </div>
                   ))}
                 </div>
+
+                {analysisResult.agentsActivated && analysisResult.agentsActivated.length > 0 && (
+                  <div className="mt-3 p-3.5 rounded-xl border border-indigo-500/20 bg-indigo-500/5">
+                    <span className="block text-[9px] text-indigo-400 font-extrabold uppercase tracking-wide mb-1.5">🛡️ 평가 참여 에이전트 브리핑 (Agent Audit Briefing)</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {analysisResult.agentsActivated.map((agent, idx) => (
+                        <span key={idx} className="text-[10px] bg-slate-900 border border-slate-800/80 text-indigo-300 px-2.5 py-0.5 rounded-lg font-bold">
+                          {agent}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Visual Alternative Proposal Card for Multimodal Image Evaluation */}

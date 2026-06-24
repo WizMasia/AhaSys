@@ -68,6 +68,8 @@ export default function App() {
   const [showBenchmarkTab, setShowBenchmarkTab] = useState<boolean>(false);
   const [benchmarkCases, setBenchmarkCases] = useState<BenchmarkCase[]>([]);
   const [benchmarkRunning, setBenchmarkRunning] = useState<boolean>(false);
+  const [benchmarkProgress, setBenchmarkProgress] = useState<number>(0);
+  const [benchmarkStatusMsg, setBenchmarkStatusMsg] = useState<string>("");
   const [benchmarkStats, setBenchmarkStats] = useState<{
     passed: number;
     failed: number;
@@ -239,7 +241,11 @@ export default function App() {
     str += `* **추론 제품 분류군**: \`${analysisResult.parsedMeta.productType}\`\n`;
     str += `* **조사 특별 법령 영역**: \`${analysisResult.parsedMeta.regulatoryDomain}\`\n`;
     str += `* **유통 예정 마케팅 매체**: \`${analysisResult.parsedMeta.channels}\`\n`;
-    str += `* **주요 타겟 세그먼트**: \`${analysisResult.parsedMeta.targets}\`\n\n`;
+    str += `* **주요 타겟 세그먼트**: \`${analysisResult.parsedMeta.targets}\`\n`;
+    if (analysisResult.agentsActivated && analysisResult.agentsActivated.length > 0) {
+      str += `* **참여 심의 서브 에이전트**: ${analysisResult.agentsActivated.map(a => `\`${a}\``).join(', ')}\n`;
+    }
+    str += `\n`;
 
     str += `## 3. 세부 위법 제재 조항 검출 및 감점 내역 (${analysisResult.violations.length}건)\n`;
     if (analysisResult.violations.length === 0) {
@@ -346,6 +352,12 @@ export default function App() {
             <tr>
               <td style="font-weight: bold; color: #64748b; padding: 2px 0;">추가 맥락:</td>
               <td style="color: #334155; font-style: italic; padding: 2px 0;">"${additionalContext}"</td>
+            </tr>
+          ` : ''}
+          ${analysisResult.agentsActivated && analysisResult.agentsActivated.length > 0 ? `
+            <tr>
+              <td style="font-weight: bold; color: #64748b; padding: 2px 0; vertical-align: top;">참여 에이전트:</td>
+              <td style="color: #0f172a; font-weight: bold; padding: 2px 0;">${analysisResult.agentsActivated.join(', ')}</td>
             </tr>
           ` : ''}
         </table>
@@ -627,7 +639,7 @@ export default function App() {
     setLocalLlmErrorText(null);
     setLoading(true);
     setAnalysisProgress(3);
-    setAnalysisStatusMsg("1단계: 자율 가중 문맥 추론 메타포팅 파싱 중...");
+    setAnalysisStatusMsg("오케스트레이터 에이전트 기동 및 광고 원안/이미지 파싱 중...");
 
     const progressInterval = setInterval(() => {
       setAnalysisProgress((prev) => {
@@ -638,16 +650,16 @@ export default function App() {
         const step = Math.max(1, Math.round(remains * 0.12));
         const next = Math.min(95, prev + step);
 
-        if (next < 25) {
-          setAnalysisStatusMsg("1단계: 자율 가중 문맥 추론 메타포팅 입출력 정규화 중...");
-        } else if (next < 55) {
-          setAnalysisStatusMsg("2단계: 부당 표시광고 금지기준 및 대한민국 특별법 RAG 대조 중...");
-        } else if (next < 75) {
-          setAnalysisStatusMsg("3단계: 위반 심사 조문 및 감점 가중 매트릭스 알고리즘 처리 중...");
-        } else if (next < 90) {
-          setAnalysisStatusMsg("4단계: 마케팅 안심 순화 안전 대안 권고안 조율 중...");
+        if (next < 20) {
+          setAnalysisStatusMsg("1단계: 오케스트레이터 에이전트 기동 및 메타 정보 추출 중...");
+        } else if (next < 40) {
+          setAnalysisStatusMsg("2단계: 하이브리드 RAG 엔진 가동 및 대한민국 법규/판례 키워드 대조 중...");
+        } else if (next < 65) {
+          setAnalysisStatusMsg("3단계: 오케스트레이터 에이전트 분석 및 다중 도메인 에이전트 라우팅 연산 중...");
+        } else if (next < 85) {
+          setAnalysisStatusMsg("4단계: 다중 전문 에이전트 병렬 협동 검정 구동 중 (법률/사회/ESG/개인정보/청소년)...");
         } else {
-          setAnalysisStatusMsg("5단계: 평론 보고서 마무리 및 국가공인 법제처 데이터 연계 대조 중...");
+          setAnalysisStatusMsg("5단계: 검출 조항 가중치 집계 및 마케팅 안심 순화 대체 텍스트 카피 도출 중...");
         }
         return next;
       });
@@ -688,29 +700,56 @@ export default function App() {
   // Run Batch Benchmark 1,000 cases mockup simulation
   const triggerBenchmark = async () => {
     setBenchmarkRunning(true);
+    setBenchmarkProgress(0);
+    setBenchmarkStatusMsg("벤치마크 엔진 기동 중...");
+    
     // Setting simulation status
     setBenchmarkCases(prev => prev.map(c => ({ ...c, status: 'running' })));
+
+    const progressInterval = setInterval(() => {
+      setBenchmarkProgress((prev) => {
+        if (prev >= 98) {
+          return prev;
+        }
+        const remains = 100 - prev;
+        const step = Math.max(1, Math.round(remains * 0.15));
+        const next = Math.min(98, prev + step);
+
+        if (next < 25) {
+          setBenchmarkStatusMsg("1단계: 무작위 100건 심의 대상 케이스 샘플 추출 중...");
+        } else if (next < 55) {
+          setBenchmarkStatusMsg("2단계: 다중 스레드 병렬 자율 법률 매핑 시뮬레이션 가동 중...");
+        } else if (next < 80) {
+          setBenchmarkStatusMsg("3단계: 준법 위반 조항 연계 판정 및 감점 가중치 연산 중...");
+        } else {
+          setBenchmarkStatusMsg("4단계: 물리 보고서 마크다운 디렉토리 파티셔닝 적재 중...");
+        }
+        return next;
+      });
+    }, 150);
     
     try {
       const data = await apiClient.runBenchmark();
+      clearInterval(progressInterval);
+      setBenchmarkProgress(100);
+      setBenchmarkStatusMsg("벤치마크 검정 완료!");
 
-      setBenchmarkCases(prev => prev.map((c) => {
-        const found = data.testRuns.find((tr: any) => tr.id === c.id);
-        if (found) {
-          return {
-            ...c,
-            status: 'success',
-            result: {
-              score: found.score,
-              violationsCount: found.violationsCount,
-              meta: { productType: "자동 추론", targets: "혼합 세그먼트", regulatoryDomain: "계통 특별법", channels: "옴니채널" },
-              timeMs: found.timeMs,
-              adapterUsed: `${llm.adapterType} (${llm.customModel})`
-            }
-          };
+      // Update benchmark cases with the actual run cases
+      const runCases = data.testRuns.map((tr: any) => ({
+        id: tr.id,
+        name: tr.name,
+        inputText: tr.inputText,
+        expectedViolations: tr.violationsCount,
+        status: tr.isPass ? 'success' : 'failed' as any,
+        result: {
+          score: tr.score,
+          violationsCount: tr.violationsCount,
+          meta: { productType: "자동 추론", targets: "혼합 세그먼트", regulatoryDomain: "계통 특별법", channels: "옴니채널" },
+          timeMs: tr.timeMs,
+          adapterUsed: `${llm.adapterType} (${llm.customModel})`
         }
-        return { ...c, status: 'failed' };
       }));
+      setBenchmarkCases(runCases);
 
       setBenchmarkStats({
         passed: data.passed,
@@ -719,6 +758,9 @@ export default function App() {
         averageLatency: Math.round(data.testRuns.reduce((acc: number, cur: any) => acc + cur.timeMs, 0) / data.total)
       });
     } catch {
+      clearInterval(progressInterval);
+      setBenchmarkProgress(0);
+      setBenchmarkStatusMsg("벤치마크 수행 실패");
       setErrorText("벤치마크 배치 오케스트레이션 수행 결과 디렉토리 파티셔닝 중 장애가 발생했습니다.");
     } finally {
       setBenchmarkRunning(false);
@@ -896,6 +938,8 @@ export default function App() {
         {activeTab === 'benchmark' && showBenchmarkTab && (
           <BenchmarkTab
             benchmarkRunning={benchmarkRunning}
+            benchmarkProgress={benchmarkProgress}
+            benchmarkStatusMsg={benchmarkStatusMsg}
             benchmarkStats={benchmarkStats}
             benchmarkCases={benchmarkCases}
             triggerBenchmark={triggerBenchmark}

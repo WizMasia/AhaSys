@@ -75,6 +75,7 @@ export interface SystemAnalysisResult {
     alternativeVisualDraft: string;
   };
   modelUsed?: string;
+  agentsActivated?: string[];
 }
 
 export interface RegulationClause {

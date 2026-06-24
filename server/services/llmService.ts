@@ -607,6 +607,14 @@ export async function performAnalysis(params: {
     parsedAgentsData.push(parsed);
   });
 
+  const agentsActivated: string[] = [];
+  if (routeDecision.needLegal) agentsActivated.push("LEGAL (실정법률 준수 검사)");
+  if (routeDecision.needSocial) agentsActivated.push("SOCIAL (사회적 논란/재난 심의)");
+  if (routeDecision.needEsg) agentsActivated.push("ESG (그린워싱 광고 심사)");
+  if (routeDecision.needPrivacy) agentsActivated.push("PRIVACY (개인정보 보호 심사)");
+  if (routeDecision.needYouth) agentsActivated.push("YOUTH (청소년 위해/사행성 심사)");
+  if (routeDecision.needCopyright) agentsActivated.push("COPYRIGHT (지식재산권 보호 심사)");
+
   const finalResultData: any = {
     parsedMeta: parsedAgentsData[0].parsedMeta || parsedAgentsData[1].parsedMeta || parsedAgentsData[2].parsedMeta || {
       productType: DEFAULT_PRODUCT_TYPE,
@@ -617,6 +625,7 @@ export async function performAnalysis(params: {
     score: BASE_SCORE,
     violations: [],
     matchedLaws: [],
+    agentsActivated,
     imageAlternativeProposal: {
       detectedVisualCopys: [],
       visualViolations: [],

@@ -15,6 +15,7 @@ export interface AnalyzeCompliancePayload {
   modelName: string;
   endpoint?: string;
   apiKey?: string;
+  analysisMode?: string;
 }
 
 export interface HistItem {
@@ -116,6 +117,7 @@ export const apiClient = {
         customApiKey: payload.apiKey,
         websiteUrl: payload.url,
         additionalContext: payload.context,
+        analysisMode: payload.analysisMode,
       }),
     });
 

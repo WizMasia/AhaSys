@@ -50,7 +50,7 @@ router.post('/proxy/models', async (req, res) => {
 
 // Run individual analyze query (text + image)
 router.post('/analyze', async (req, res) => {
-  const { text, imageB64, imagesB64, adapter, adapterType, customModel, customEndpoint, customApiKey, websiteUrl, additionalContext } = req.body;
+  const { text, imageB64, imagesB64, adapter, adapterType, customModel, customEndpoint, customApiKey, websiteUrl, additionalContext, analysisMode } = req.body;
   
   try {
     const result = await performAnalysis({
@@ -63,6 +63,7 @@ router.post('/analyze', async (req, res) => {
       customApiKey,
       websiteUrl,
       additionalContext,
+      analysisMode,
       globalApiKey: process.env.FALLBACK_API_KEY || process.env.GEMINI_API_KEY
     });
     res.json(result);

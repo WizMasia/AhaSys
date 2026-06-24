@@ -353,6 +353,7 @@ export async function performAnalysis(params: {
   customApiKey: any;
   websiteUrl: any;
   additionalContext: any;
+  analysisMode?: any;
   globalApiKey: string | undefined;
 }) {
   const {
@@ -365,6 +366,7 @@ export async function performAnalysis(params: {
     customApiKey,
     websiteUrl,
     additionalContext,
+    analysisMode,
     globalApiKey
   } = params;
 
@@ -476,33 +478,10 @@ export async function performAnalysis(params: {
     copyrightSegment: ""
   };
 
-  try {
-    const routeResult = await executeLLMAnalysis(orchestratorPayload, adapterType);
-    if (routeResult.usageMetadata) {
-      hasUsage = true;
-      promptTokens += routeResult.usageMetadata.promptTokenCount || 0;
-      completionTokens += routeResult.usageMetadata.candidatesTokenCount || 0;
-      totalTokens += routeResult.usageMetadata.totalTokenCount || 0;
-    }
-    
-    const parsedRoute = repairAndParseJson(routeResult.responseText);
-    
-    if (parsedRoute) {
-      routeDecision.needLegal = true;
-      routeDecision.needSocial = parsedRoute.needSocial === true;
-      routeDecision.needEsg = parsedRoute.needEsg === true;
-      routeDecision.needPrivacy = parsedRoute.needPrivacy === true;
-      routeDecision.needYouth = parsedRoute.needYouth === true;
-      routeDecision.needCopyright = parsedRoute.needCopyright === true;
-      routeDecision.legalSegment = typeof parsedRoute.legalSegment === 'string' ? parsedRoute.legalSegment.trim() : "";
-      routeDecision.socialSegment = typeof parsedRoute.socialSegment === 'string' ? parsedRoute.socialSegment.trim() : "";
-      routeDecision.esgSegment = typeof parsedRoute.esgSegment === 'string' ? parsedRoute.esgSegment.trim() : "";
-      routeDecision.privacySegment = typeof parsedRoute.privacySegment === 'string' ? parsedRoute.privacySegment.trim() : "";
-      routeDecision.youthSegment = typeof parsedRoute.youthSegment === 'string' ? parsedRoute.youthSegment.trim() : "";
-      routeDecision.copyrightSegment = typeof parsedRoute.copyrightSegment === 'string' ? parsedRoute.copyrightSegment.trim() : "";
-    }
-  } catch (err) {
-    console.warn("Orchestrator routing failed, falling back to full review:", err);
+  const hasCustomKey = !!(customApiKey && customApiKey.trim());
+  const finalMode = hasCustomKey ? analysisMode : 'optimized';
+
+  if (finalMode === 'full') {
     routeDecision = {
       needLegal: true,
       needSocial: true,
@@ -517,6 +496,49 @@ export async function performAnalysis(params: {
       youthSegment: "",
       copyrightSegment: ""
     };
+  } else {
+    try {
+      const routeResult = await executeLLMAnalysis(orchestratorPayload, adapterType);
+      if (routeResult.usageMetadata) {
+        hasUsage = true;
+        promptTokens += routeResult.usageMetadata.promptTokenCount || 0;
+        completionTokens += routeResult.usageMetadata.candidatesTokenCount || 0;
+        totalTokens += routeResult.usageMetadata.totalTokenCount || 0;
+      }
+      
+      const parsedRoute = repairAndParseJson(routeResult.responseText);
+      
+      if (parsedRoute) {
+        routeDecision.needLegal = true;
+        routeDecision.needSocial = parsedRoute.needSocial === true;
+        routeDecision.needEsg = parsedRoute.needEsg === true;
+        routeDecision.needPrivacy = parsedRoute.needPrivacy === true;
+        routeDecision.needYouth = parsedRoute.needYouth === true;
+        routeDecision.needCopyright = parsedRoute.needCopyright === true;
+        routeDecision.legalSegment = typeof parsedRoute.legalSegment === 'string' ? parsedRoute.legalSegment.trim() : "";
+        routeDecision.socialSegment = typeof parsedRoute.socialSegment === 'string' ? parsedRoute.socialSegment.trim() : "";
+        routeDecision.esgSegment = typeof parsedRoute.esgSegment === 'string' ? parsedRoute.esgSegment.trim() : "";
+        routeDecision.privacySegment = typeof parsedRoute.privacySegment === 'string' ? parsedRoute.privacySegment.trim() : "";
+        routeDecision.youthSegment = typeof parsedRoute.youthSegment === 'string' ? parsedRoute.youthSegment.trim() : "";
+        routeDecision.copyrightSegment = typeof parsedRoute.copyrightSegment === 'string' ? parsedRoute.copyrightSegment.trim() : "";
+      }
+    } catch (err) {
+      console.warn("Orchestrator routing failed, falling back to full review:", err);
+      routeDecision = {
+        needLegal: true,
+        needSocial: true,
+        needEsg: true,
+        needPrivacy: true,
+        needYouth: true,
+        needCopyright: true,
+        legalSegment: "",
+        socialSegment: "",
+        esgSegment: "",
+        privacySegment: "",
+        youthSegment: "",
+        copyrightSegment: ""
+      };
+    }
   }
 
   routeDecision.needLegal = true;

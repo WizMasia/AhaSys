@@ -54,6 +54,7 @@ export default function App() {
   const [analysisResult, setAnalysisResult] = useState<SystemAnalysisResult | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [localLlmErrorText, setLocalLlmErrorText] = useState<string | null>(null);
+  const [analysisMode, setAnalysisMode] = useState<'optimized' | 'full'>('optimized');
 
   // Special UI alerts for Gemini API key validation or Quota exhaustion
   const [showKeyAlert, setShowKeyAlert] = useState<boolean>(false);
@@ -663,6 +664,9 @@ export default function App() {
     }, 450);
 
     try {
+      const activeApiKey = (typeof llm.customApiKey === 'string' && llm.customApiKey.trim());
+      const finalMode = activeApiKey ? analysisMode : 'optimized';
+
       const data = await apiClient.analyzeCompliance({
         text: textToUse,
         url: websiteUrl,
@@ -672,8 +676,9 @@ export default function App() {
         adapter: llm.adapterType,
         modelName: llm.customModel,
         endpoint: llm.customEndpoint,
-        apiKey: llm.customApiKey
-      });
+        apiKey: llm.customApiKey,
+        analysisMode: finalMode
+      } as any);
 
       if (data.error) {
         setErrorText(data.message || "심의 과정 도중 에러가 보고되었습니다.");
@@ -913,6 +918,8 @@ export default function App() {
             handleCopyMarkdown={handleCopyMarkdown}
             copied={copied}
             setShowPrintModal={setShowPrintModal}
+            analysisMode={analysisMode}
+            setAnalysisMode={setAnalysisMode}
             getCsatGradeInfo={getCsatGradeInfo}
             getScoreColor={getScoreColor}
             getMarkdownReportString={getMarkdownReportString}

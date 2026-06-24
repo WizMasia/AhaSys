@@ -441,12 +441,21 @@ export async function performAnalysis(params: {
     return `[${article.clause}] (Tier ${article.tier}) - ${article.text}`;
   }).join('\n\n');
 
-  const systemInstructionLegal = getSystemInstruction(fullLibraryContext, fewShotContext);
-  const systemInstructionSocial = `${getSocialControversyInstruction()}\n\n[참조 법령 및 가이드라인]\n${fullLibraryContext}`;
-  const systemInstructionEsg = `${getEsgGreenwashingInstruction()}\n\n[참조 법령 및 가이드라인]\n${fullLibraryContext}`;
-  const systemInstructionPrivacy = `${getPrivacyProtectionInstruction()}\n\n[참조 법령 및 가이드라인]\n${fullLibraryContext}`;
-  const systemInstructionYouth = `${getYouthProtectionInstruction()}\n\n[참조 법령 및 가이드라인]\n${fullLibraryContext}`;
-  const systemInstructionCopyright = `${getCopyrightProtectionInstruction()}\n\n[참조 법령 및 가이드라인]\n${fullLibraryContext}`;
+  const legalArticles = REGULATORY_LIBRARY.filter(article => article.tier <= 3);
+  const legalLawsContext = legalArticles.map(article => `[${article.clause}] (Tier ${article.tier}) - ${article.text}`).join('\n\n');
+
+  const socialArticles = REGULATORY_LIBRARY.filter(article => article.tier === 4);
+  const socialLawsContext = socialArticles.map(article => `[${article.clause}] (Tier ${article.tier}) - ${article.text}`).join('\n\n');
+
+  const youthArticles = REGULATORY_LIBRARY.filter(article => article.domain === "게임산업진흥법");
+  const youthLawsContext = youthArticles.map(article => `[${article.clause}] (Tier ${article.tier}) - ${article.text}`).join('\n\n');
+
+  const systemInstructionLegal = getSystemInstruction(legalLawsContext, fewShotContext);
+  const systemInstructionSocial = `${getSocialControversyInstruction()}\n\n[참조 법령 및 가이드라인]\n${socialLawsContext}`;
+  const systemInstructionEsg = getEsgGreenwashingInstruction();
+  const systemInstructionPrivacy = getPrivacyProtectionInstruction();
+  const systemInstructionYouth = youthLawsContext ? `${getYouthProtectionInstruction()}\n\n[참조 법령 및 가이드라인]\n${youthLawsContext}` : getYouthProtectionInstruction();
+  const systemInstructionCopyright = getCopyrightProtectionInstruction();
 
   let promptTokens = 0;
   let completionTokens = 0;

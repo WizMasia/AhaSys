@@ -485,7 +485,8 @@ export async function performAnalysis(params: {
     const parsedRoute = repairAndParseJson(routeResult.responseText);
     
     if (parsedRoute) {
-      routeDecision.needLegal = true;
+  routeDecision.needLegal = true;
+  routeDecision.needSocial = true;
       routeDecision.needSocial = parsedRoute.needSocial === true;
       routeDecision.needEsg = parsedRoute.needEsg === true;
       routeDecision.needPrivacy = parsedRoute.needPrivacy === true;

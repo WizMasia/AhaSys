@@ -102,9 +102,10 @@ export const COMPLIANCE_RESPONSE_SCHEMA = {
         alternativeVisualDraft: { type: "STRING" }
       },
       required: ["detectedVisualCopys", "visualViolations", "visualRemediationSteps", "alternativeVisualDraft"]
-    }
+    },
+    modelUsed: { type: "STRING", description: "분석에 사용된 실제 LLM 모델명" }
   },
-  required: ["parsedMeta", "score", "violations", "matchedLaws", "imageAlternativeProposal"]
+  required: ["parsedMeta", "score", "violations", "matchedLaws", "imageAlternativeProposal", "modelUsed"]
 };
 
 let instructionsCache: Record<string, string> | null = null;
@@ -159,8 +160,20 @@ export function getEsgGreenwashingInstruction(): string {
   return loadInstructions()["ESG"] || "";
 }
 
+export function getLegalFinanceInstruction(): string {
+  return loadInstructions()["LEGAL_FINANCE"] || "";
+}
+
+export function getLegalCommerceInstruction(): string {
+  return loadInstructions()["LEGAL_COMMERCE"] || "";
+}
+
+export function getLegalNetInstruction(): string {
+  return loadInstructions()["LEGAL_NET"] || "";
+}
+
 export function getSystemInstruction(matchedLawsContext: string, fewShotContext: string): string {
-  const legalBase = loadInstructions()["LEGAL"] || "";
+  const legalBase = loadInstructions()["LEGAL_PRODUCT"] || "";
   return legalBase
     .replace(/\${matchedLawsContext \|\| '일반 표시광고법 및 부당광고 금지기준'}/g, matchedLawsContext || '일반 표시광고법 및 부당광고 금지기준')
     .replace(/\${fewShotContext \|\| '과거 유사 판례 없음.'}/g, fewShotContext || '과거 유사 판례 없음.');

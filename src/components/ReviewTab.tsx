@@ -25,19 +25,31 @@ import { SystemAnalysisResult } from '../types';
 import { useApp } from '../contexts/AppContext';
 
 const getPredictedAgents = (text: string, hasImages: boolean) => {
-  const agents = ["LEGAL (법률)", "SOCIAL (사회적 논란/재난)"];
+  const agents = ["LEGAL_PRODUCT (식의약/보건)"];
   const t = (text || "").toLowerCase();
   
+  if (t.includes("수익") || t.includes("원금") || t.includes("금리") || t.includes("투자") || t.includes("대출") || t.includes("게임") || t.includes("확률") || t.includes("뽑기")) {
+    agents.push("LEGAL_FINANCE (금융/게임)");
+  }
+  if (t.includes("광고") || t.includes("1위") || t.includes("최초") || t.includes("소비자") || t.includes("환불") || t.includes("취소") || t.includes("계약") || t.includes("간판") || t.includes("현수막")) {
+    agents.push("LEGAL_COMMERCE (공정거래/계약)");
+  }
+  if (t.includes("이메일") || t.includes("개인정보") || t.includes("보안") || t.includes("아동") || t.includes("청소년") || t.includes("학대") || t.includes("스팸") || t.includes("명예훼손")) {
+    agents.push("LEGAL_NET (정보망/아동복지)");
+  }
+  if (t.includes("리본") || t.includes("홀로코스트") || t.includes("우크라이나") || t.includes("비극") || t.includes("이태원") || t.includes("전쟁") || t.includes("탱크") || t.includes("단테") || t.includes("나수") || t.includes("5/18") || t.includes("4/16") || t.includes("10/29") || t.includes("6/25") || t.includes("4/3")) {
+    agents.push("SOCIAL (사회적 논란/재난)");
+  }
   if (t.includes("친환경") || t.includes("무독성") || t.includes("그린") || t.includes("esg") || t.includes("탄소") || t.includes("오염")) {
     agents.push("ESG (그린워싱)");
   }
-  if (t.includes("개인정보") || t.includes("보안") || t.includes("비밀번호") || t.includes("주민번호") || t.includes("해킹") || t.includes("도용")) {
+  if (t.includes("비밀번호") || t.includes("주민번호") || t.includes("해킹") || t.includes("도용")) {
     agents.push("PRIVACY (개인정보)");
   }
-  if (t.includes("청소년") || t.includes("급전") || t.includes("대출") || t.includes("게임") || t.includes("확률") || t.includes("뽑기") || t.includes("성인") || t.includes("아동")) {
+  if (t.includes("자해") || t.includes("가출") || t.includes("주류") || t.includes("담배")) {
     agents.push("YOUTH (청소년)");
   }
-  if (t.includes("특허") || t.includes("상표") || t.includes("카피") || t.includes("라이선스") || t.includes("저작권") || t.includes("저작") || t.includes("도용") || hasImages) {
+  if (t.includes("특허") || t.includes("상표") || t.includes("카피") || t.includes("라이선스") || t.includes("저작권") || hasImages) {
     agents.push("COPYRIGHT (지식재산권)");
   }
   return agents;
@@ -439,7 +451,7 @@ export function ReviewTab({
                 {
                   id: 4,
                   title: "4단계: 다중 전문 에이전트 병렬 협동 검정 구동",
-                  desc: "LEGAL, SOCIAL, ESG, PRIVACY, YOUTH, COPYRIGHT 병렬 심의",
+                  desc: "LEGAL(식의약/금융/공정거래/정보망), SOCIAL, ESG, PRIVACY, YOUTH, COPYRIGHT 병렬 심의",
                   completed: analysisProgress >= 85,
                   running: analysisProgress >= 65 && analysisProgress < 85,
                   extraInfo: (analysisProgress >= 65) ? (

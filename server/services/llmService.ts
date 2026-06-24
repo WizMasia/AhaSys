@@ -5,7 +5,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { LawArticle, REGULATORY_LIBRARY } from '../db/regulatoryLibrary';
-import { getSystemInstruction, getSocialControversyInstruction, getEsgGreenwashingInstruction, getPrivacyProtectionInstruction, getYouthProtectionInstruction, getOrchestratorRoutingInstruction, getCopyrightProtectionInstruction } from '../prompts/compliancePrompt';
+import { getSystemInstruction, getSocialControversyInstruction, getEsgGreenwashingInstruction, getPrivacyProtectionInstruction, getYouthProtectionInstruction, getOrchestratorRoutingInstruction, getCopyrightProtectionInstruction, getLegalFinanceInstruction, getLegalCommerceInstruction, getLegalNetInstruction } from '../prompts/compliancePrompt';
 
 // Constants
 export const BASE_SCORE = 100;
@@ -441,20 +441,33 @@ export async function performAnalysis(params: {
     return `[${article.clause}] (Tier ${article.tier}) - ${article.text}`;
   }).join('\n\n');
 
-  const legalArticles = REGULATORY_LIBRARY.filter(article => article.tier <= 3);
-  const legalLawsContext = legalArticles.map(article => `[${article.clause}] (Tier ${article.tier}) - ${article.text}`).join('\n\n');
+  const productDomains = ["화장품법", "식품표시광고법", "의료법", "어린이식생활법", "국민건강증진법"];
+  const productArticles = REGULATORY_LIBRARY.filter(article => productDomains.includes(article.domain));
+  const productLawsContext = productArticles.map(article => `[${article.clause}] - ${article.text}`).join('\n\n');
+  const systemInstructionLegalProduct = getSystemInstruction(productLawsContext, fewShotContext);
+
+  const financeDomains = ["금융소비자보호법", "게임산업진흥법"];
+  const financeArticles = REGULATORY_LIBRARY.filter(article => financeDomains.includes(article.domain));
+  const financeLawsContext = financeArticles.map(article => `[${article.clause}] - ${article.text}`).join('\n\n');
+  const systemInstructionLegalFinance = `${getLegalFinanceInstruction()}\n\n[참조 법령 및 가이드라인]\n${financeLawsContext}`;
+
+  const commerceDomains = ["표시광고법", "소비자기본법", "민법", "전자상거래법", "옥외광고물법"];
+  const commerceArticles = REGULATORY_LIBRARY.filter(article => commerceDomains.includes(article.domain));
+  const commerceLawsContext = commerceArticles.map(article => `[${article.clause}] - ${article.text}`).join('\n\n');
+  const systemInstructionLegalCommerce = `${getLegalCommerceInstruction()}\n\n[참조 법령 및 가이드라인]\n${commerceLawsContext}`;
+
+  const netDomains = ["정보통신망법", "아동복지법"];
+  const netArticles = REGULATORY_LIBRARY.filter(article => netDomains.includes(article.domain));
+  const netLawsContext = netArticles.map(article => `[${article.clause}] - ${article.text}`).join('\n\n');
+  const systemInstructionLegalNet = `${getLegalNetInstruction()}\n\n[참조 법령 및 가이드라인]\n${netLawsContext}`;
 
   const socialArticles = REGULATORY_LIBRARY.filter(article => article.tier === 4);
   const socialLawsContext = socialArticles.map(article => `[${article.clause}] (Tier ${article.tier}) - ${article.text}`).join('\n\n');
 
-  const youthArticles = REGULATORY_LIBRARY.filter(article => article.domain === "게임산업진흥법");
-  const youthLawsContext = youthArticles.map(article => `[${article.clause}] (Tier ${article.tier}) - ${article.text}`).join('\n\n');
-
-  const systemInstructionLegal = getSystemInstruction(legalLawsContext, fewShotContext);
   const systemInstructionSocial = `${getSocialControversyInstruction()}\n\n[참조 법령 및 가이드라인]\n${socialLawsContext}`;
   const systemInstructionEsg = getEsgGreenwashingInstruction();
   const systemInstructionPrivacy = getPrivacyProtectionInstruction();
-  const systemInstructionYouth = youthLawsContext ? `${getYouthProtectionInstruction()}\n\n[참조 법령 및 가이드라인]\n${youthLawsContext}` : getYouthProtectionInstruction();
+  const systemInstructionYouth = getYouthProtectionInstruction();
   const systemInstructionCopyright = getCopyrightProtectionInstruction();
 
   let promptTokens = 0;
@@ -474,13 +487,19 @@ export async function performAnalysis(params: {
   };
 
   let routeDecision = {
-    needLegal: true,
+    needLegalProduct: true,
+    needLegalFinance: false,
+    needLegalCommerce: false,
+    needLegalNet: false,
     needSocial: false,
     needEsg: false,
     needPrivacy: false,
     needYouth: false,
     needCopyright: false,
-    legalSegment: "",
+    legalProductSegment: "",
+    legalFinanceSegment: "",
+    legalCommerceSegment: "",
+    legalNetSegment: "",
     socialSegment: "",
     esgSegment: "",
     privacySegment: "",
@@ -493,13 +512,19 @@ export async function performAnalysis(params: {
 
   if (finalMode === 'full') {
     routeDecision = {
-      needLegal: true,
+      needLegalProduct: true,
+      needLegalFinance: true,
+      needLegalCommerce: true,
+      needLegalNet: true,
       needSocial: true,
       needEsg: true,
       needPrivacy: true,
       needYouth: true,
       needCopyright: true,
-      legalSegment: "",
+      legalProductSegment: "",
+      legalFinanceSegment: "",
+      legalCommerceSegment: "",
+      legalNetSegment: "",
       socialSegment: "",
       esgSegment: "",
       privacySegment: "",
@@ -519,13 +544,19 @@ export async function performAnalysis(params: {
       const parsedRoute = repairAndParseJson(routeResult.responseText);
       
       if (parsedRoute) {
-        routeDecision.needLegal = true;
+        routeDecision.needLegalProduct = true;
+        routeDecision.needLegalFinance = parsedRoute.needLegalFinance === true;
+        routeDecision.needLegalCommerce = parsedRoute.needLegalCommerce === true;
+        routeDecision.needLegalNet = parsedRoute.needLegalNet === true;
         routeDecision.needSocial = parsedRoute.needSocial === true;
         routeDecision.needEsg = parsedRoute.needEsg === true;
         routeDecision.needPrivacy = parsedRoute.needPrivacy === true;
         routeDecision.needYouth = parsedRoute.needYouth === true;
         routeDecision.needCopyright = parsedRoute.needCopyright === true;
-        routeDecision.legalSegment = typeof parsedRoute.legalSegment === 'string' ? parsedRoute.legalSegment.trim() : "";
+        routeDecision.legalProductSegment = typeof parsedRoute.legalProductSegment === 'string' ? parsedRoute.legalProductSegment.trim() : "";
+        routeDecision.legalFinanceSegment = typeof parsedRoute.legalFinanceSegment === 'string' ? parsedRoute.legalFinanceSegment.trim() : "";
+        routeDecision.legalCommerceSegment = typeof parsedRoute.legalCommerceSegment === 'string' ? parsedRoute.legalCommerceSegment.trim() : "";
+        routeDecision.legalNetSegment = typeof parsedRoute.legalNetSegment === 'string' ? parsedRoute.legalNetSegment.trim() : "";
         routeDecision.socialSegment = typeof parsedRoute.socialSegment === 'string' ? parsedRoute.socialSegment.trim() : "";
         routeDecision.esgSegment = typeof parsedRoute.esgSegment === 'string' ? parsedRoute.esgSegment.trim() : "";
         routeDecision.privacySegment = typeof parsedRoute.privacySegment === 'string' ? parsedRoute.privacySegment.trim() : "";
@@ -535,13 +566,19 @@ export async function performAnalysis(params: {
     } catch (err) {
       console.warn("Orchestrator routing failed, falling back to full review:", err);
       routeDecision = {
-        needLegal: true,
+        needLegalProduct: true,
+        needLegalFinance: true,
+        needLegalCommerce: true,
+        needLegalNet: true,
         needSocial: true,
         needEsg: true,
         needPrivacy: true,
         needYouth: true,
         needCopyright: true,
-        legalSegment: "",
+        legalProductSegment: "",
+        legalFinanceSegment: "",
+        legalCommerceSegment: "",
+        legalNetSegment: "",
         socialSegment: "",
         esgSegment: "",
         privacySegment: "",
@@ -551,15 +588,49 @@ export async function performAnalysis(params: {
     }
   }
 
-  routeDecision.needLegal = true;
-
   const payloads: any[] = [];
-  if (routeDecision.needLegal) {
+  if (routeDecision.needLegalProduct) {
     payloads.push({
-      textStr: textStr,
+      textStr: routeDecision.legalProductSegment || textStr,
       imageB64,
       imagesB64,
-      systemInstruction: systemInstructionLegal,
+      systemInstruction: systemInstructionLegalProduct,
+      customModel,
+      customEndpoint,
+      customApiKey,
+      globalApiKey
+    });
+  }
+  if (routeDecision.needLegalFinance) {
+    payloads.push({
+      textStr: routeDecision.legalFinanceSegment || textStr,
+      imageB64,
+      imagesB64,
+      systemInstruction: systemInstructionLegalFinance,
+      customModel,
+      customEndpoint,
+      customApiKey,
+      globalApiKey
+    });
+  }
+  if (routeDecision.needLegalCommerce) {
+    payloads.push({
+      textStr: routeDecision.legalCommerceSegment || textStr,
+      imageB64,
+      imagesB64,
+      systemInstruction: systemInstructionLegalCommerce,
+      customModel,
+      customEndpoint,
+      customApiKey,
+      globalApiKey
+    });
+  }
+  if (routeDecision.needLegalNet) {
+    payloads.push({
+      textStr: routeDecision.legalNetSegment || textStr,
+      imageB64,
+      imagesB64,
+      systemInstruction: systemInstructionLegalNet,
       customModel,
       customEndpoint,
       customApiKey,
@@ -643,7 +714,10 @@ export async function performAnalysis(params: {
   });
 
   const agentsActivated: string[] = [];
-  if (routeDecision.needLegal) agentsActivated.push("LEGAL (실정법률 준수 검사)");
+  if (routeDecision.needLegalProduct) agentsActivated.push("LEGAL_PRODUCT (식의약/보건 규정)");
+  if (routeDecision.needLegalFinance) agentsActivated.push("LEGAL_FINANCE (금융/게임 규정)");
+  if (routeDecision.needLegalCommerce) agentsActivated.push("LEGAL_COMMERCE (공정거래/계약 규정)");
+  if (routeDecision.needLegalNet) agentsActivated.push("LEGAL_NET (정보망/아동복지 규정)");
   if (routeDecision.needSocial) agentsActivated.push("SOCIAL (사회적 논란/재난 심의)");
   if (routeDecision.needEsg) agentsActivated.push("ESG (그린워싱 광고 심사)");
   if (routeDecision.needPrivacy) agentsActivated.push("PRIVACY (개인정보 보호 심사)");
@@ -651,7 +725,7 @@ export async function performAnalysis(params: {
   if (routeDecision.needCopyright) agentsActivated.push("COPYRIGHT (지식재산권 보호 심사)");
 
   const finalResultData: any = {
-    parsedMeta: parsedAgentsData[0].parsedMeta || parsedAgentsData[1].parsedMeta || parsedAgentsData[2].parsedMeta || {
+    parsedMeta: (parsedAgentsData[0] && parsedAgentsData[0].parsedMeta) || (parsedAgentsData[1] && parsedAgentsData[1].parsedMeta) || {
       productType: DEFAULT_PRODUCT_TYPE,
       targets: DEFAULT_TARGETS,
       regulatoryDomain: DEFAULT_REGULATORY_DOMAIN,

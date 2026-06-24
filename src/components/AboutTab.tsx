@@ -189,13 +189,13 @@ export function AboutTab() {
 
         <div className="p-4 rounded-xl bg-[#0d1321] text-[11px] text-slate-400 leading-relaxed text-justify space-y-2">
           <p>
-            ⚖️ <strong>저작권 안내 및 법적 면책 사항 (Copyright & Legal Disclaimers):</strong>
+            ⚖️ <strong>비공식 프로젝트 저작권 안내 및 법적 면책 사항 (Copyright & Non-Affiliation Legal Disclaimers):</strong>
           </p>
           <p>
-            본 '아하시스턴트 AI Compliance review Platform Suite(aHaSys)' 제품을 구성하는 RAG 법률 조문 매핑 알고리즘 디자인, 연계 벌점 감수 매트릭스 공식 등의 응용 지적 고안은 개발자가 연구 설계 및 개발된 비영리/참고 지적 자산이며, 본 소프트웨어는 사용된 기반 오픈소스 및 API 솔루션사(Google, Tailwind CSS 등)의 라이선스 정책에 상호 종속됩니다.
+            본 '아하시스턴트 AI Compliance review Platform Suite(aHaSys)' 제품을 구성하는 RAG 법률 조문 매핑 알고리즘 디자인, 연계 벌점 감수 매트릭스 공식 등의 응용 지적 고안은 <strong>일반인인 개인 개발자(WizMasia)가 독자적으로 구상 및 학습용/비영리 연구 목적으로 개발한 개인 프로젝트</strong>이며, 공정거래위원회 등 정부 기관을 대변하지 않으며 어떠한 공식 유관 관계도 성립되지 않습니다. 본 소프트웨어는 사용된 기반 오픈소스 및 API 솔루션사(Google, Tailwind CSS 등)의 라이선스 정책에 상호 종속됩니다.
           </p>
           <p>
-            동적 대조에 활용되는 판례 및 법규 데이터베이스 원형은 대한민국 국가법령정보센터(법제처) 공개 API에 법적 기준을 두며, Gemini 및 로컬 Google Gemma 모델 상표권·지적 권리는 Google LLC에 귀속됩니다. 본 시스템은 준법 심의 및 대안 문장 추천에 도움을 주는 참고용 어시스턴트 서비스로서, 실제 사법 기관이나 공정위 심사관의 실질적 유권 해석 및 사법적 소송 결과와 완벽히 100% 대응함을 완전히 보증하지는 않으므로 법적 분쟁 시 조언적 데이터로만 상호 대조하는 것을 권장합니다.
+            동적 대조에 활용되는 판례 및 법규 데이터베이스 원형은 대한민국 국가법령정보센터(법제처) 공개 API에 법적 기준을 두며, Gemini 및 로컬 Google Gemma 모델 상표권·지적 권리는 Google LLC에 귀속됩니다. 본 시스템은 표시광고 관련 준법 심의 및 대안 문장 추천에 도움을 주는 <strong>단순 자율 참고용 어시스턴트 서비스로서, 어떠한 법적 구속력도 가지지 않습니다.</strong> 실제 사법 기관이나 공정위 심사관의 실질적 유권 해석 및 사법적 소송 결과와 완벽히 100% 대응함을 보증하지는 않으므로 법적 분쟁 시 조언적 데이터로만 상호 대조하는 것을 권장합니다.
           </p>
           <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-500 font-mono">
             <span>LICENSE: Apache License 2.0 (SPDX-License-Identifier: Apache-2.0)</span>

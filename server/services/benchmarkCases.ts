@@ -130,42 +130,84 @@ export const BENCHMARK_TEMPLATES: readonly BenchmarkTemplate[] = [
   }
 ];
 
+interface BenchmarkVariant {
+  readonly name: string;
+  readonly inputText: string;
+}
+
+const buildBenchmarkVariant = (tmpl: BenchmarkTemplate, itemNum: string, index: number): BenchmarkVariant => {
+  if (tmpl.expectedViolations > 0) {
+    if (tmpl.inputText.includes("체지방")) {
+      const inputText = tmpl.inputText
+        .replace("100% 즉시 분해", `${70 + (index % 25)}% 세포 급속 분해 연소`)
+        .replace("하루 3번", `하루 ${2 + (index % 3)}회`);
+
+      return { name: tmpl.name, inputText };
+    }
+
+    if (tmpl.inputText.includes("아토피")) {
+      return {
+        name: tmpl.name,
+        inputText: tmpl.inputText.replace("하루만에", `${2 + (index % 3)}일 만에`)
+      };
+    }
+
+    if (tmpl.inputText.includes("원금 100%")) {
+      return {
+        name: tmpl.name,
+        inputText: tmpl.inputText.replace("25%", `${10 + (index % 20)}%`)
+      };
+    }
+
+    if (tmpl.inputText.includes("노란 리본")) {
+      return {
+        name: `[참사오용 No.${itemNum}] 세월호 리본 참사 마케팅 특별가전`,
+        inputText: tmpl.inputText.replace("할인 특가전!", `한정 추모 오용 목걸이 특가 런칭 (No.${index})!`)
+      };
+    }
+
+    if (tmpl.inputText.includes("대출")) {
+      return {
+        name: tmpl.name,
+        inputText: tmpl.inputText.replace("청소년", `소외 청소년 및 대입 수험생 (No.${index})`)
+      };
+    }
+  }
+
+  if (tmpl.inputText.includes("토마토")) {
+    return {
+      name: tmpl.name,
+      inputText: tmpl.inputText.replace("완숙 토마토입니다.", `정직하게 수확해 낸 무농약 완숙 토마토 세트 (일괄 ${4 + (index % 5)}kg).`)
+    };
+  }
+
+  if (tmpl.inputText.includes("벽시계")) {
+    return {
+      name: tmpl.name,
+      inputText: tmpl.inputText.replace("무소음", `지속 충전형 저소음 특허 아날로그 무브먼트`)
+    };
+  }
+
+  return {
+    name: tmpl.name,
+    inputText: tmpl.inputText
+  };
+};
+
 export const generateLargeBenchmarkCases = (): GeneratedBenchmarkCase[] => {
   const resultList: GeneratedBenchmarkCase[] = [];
   for (let i = 1; i <= 20000; i++) {
     const tmpl = BENCHMARK_TEMPLATES[(i - 1) % BENCHMARK_TEMPLATES.length];
     const itemNum = String(i).padStart(5, '0');
-    let name = tmpl.name;
-    let inputText = tmpl.inputText;
-
-    if (tmpl.expectedViolations > 0) {
-      if (tmpl.inputText.includes("체지방")) {
-        inputText = tmpl.inputText.replace("100% 즉시 분해", `${70 + (i % 25)}% 세포 급속 분해 연소`);
-        inputText = inputText.replace("하루 3번", `하루 ${2 + (i % 3)}회`);
-      } else if (tmpl.inputText.includes("아토피")) {
-        inputText = tmpl.inputText.replace("하루만에", `${2 + (i % 3)}일 만에`);
-      } else if (tmpl.inputText.includes("원금 100%")) {
-        inputText = tmpl.inputText.replace("25%", `${10 + (i % 20)}%`);
-      } else if (tmpl.inputText.includes("노란 리본")) {
-        name = `[참사오용 No.${itemNum}] 세월호 리본 참사 마케팅 특별가전`;
-        inputText = tmpl.inputText.replace("할인 특가전!", `한정 추모 오용 목걸이 특가 런칭 (No.${i})!`);
-      } else if (tmpl.inputText.includes("대출")) {
-        inputText = tmpl.inputText.replace("청소년", `소외 청소년 및 대입 수험생 (No.${i})`);
-      }
-    } else if (tmpl.inputText.includes("토마토")) {
-      inputText = tmpl.inputText.replace("완숙 토마토입니다.", `정직하게 수확해 낸 무농약 완숙 토마토 세트 (일괄 ${4 + (i % 5)}kg).`);
-    } else if (tmpl.inputText.includes("벽시계")) {
-      inputText = tmpl.inputText.replace("무소음", `지속 충전형 저소음 특허 아날로그 무브먼트`);
-    }
-
+    const variant = buildBenchmarkVariant(tmpl, itemNum, i);
     const suffixes = ["", " [신규]", " [특별 기획]", " [추천]", " [인기]", " [화제]", " [시즌 한정]", " [단독 수입]", " [체험단 모집]", " [실시간 할인]"];
     const suffix = suffixes[i % suffixes.length];
 
     resultList.push({
       id: `case_${itemNum}`,
       category: tmpl.category,
-      name: `${tmpl.category === "Compliant / Safe Ads" ? "🟢 [안심]" : "🚨 [위반]"} No.${itemNum} - ${name.replace(/\[.*\]\s*/g, "")}${suffix}`,
-      inputText: `${inputText} (${i})`,
+      name: `${tmpl.category === "Compliant / Safe Ads" ? "🟢 [안심]" : "🚨 [위반]"} No.${itemNum} - ${variant.name.replace(/\[.*\]\s*/g, "")}${suffix}`,
+      inputText: `${variant.inputText} (${i})`,
       expectedViolations: tmpl.expectedViolations
     });
   }
@@ -173,4 +215,3 @@ export const generateLargeBenchmarkCases = (): GeneratedBenchmarkCase[] => {
 };
 
 export const BENCHMARK_CASES = generateLargeBenchmarkCases();
-

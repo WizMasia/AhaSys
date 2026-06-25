@@ -4,11 +4,13 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
+import fs from 'node:fs/promises';
 import { REGULATORY_LIBRARY } from '../db/regulatoryLibrary';
 import { getSystemInstruction, getSocialControversyInstruction, getEsgGreenwashingInstruction, getPrivacyProtectionInstruction, getYouthProtectionInstruction, getOrchestratorRoutingInstruction, getCopyrightProtectionInstruction, getLegalFinanceInstruction, getLegalCommerceInstruction, getLegalNetInstruction } from '../prompts/compliancePrompt';
 import { BENCHMARK_CASES } from './benchmarkCases';
 import { addToHistoryCollection, clearHistoryCollection, getHistoryCollection } from './historyStore';
 import { retrieveFewShots, retrieveGuidelines } from './rag';
+import { modelSupportsVision, shouldProbeVisionCapability } from '../../shared/modelCapabilities';
 
 export { BENCHMARK_CASES, clearHistoryCollection, getHistoryCollection, retrieveGuidelines };
 
@@ -18,6 +20,8 @@ export const DEFAULT_PRODUCT_TYPE = "일반광고";
 export const DEFAULT_TARGETS = "일반 대중";
 export const DEFAULT_REGULATORY_DOMAIN = "표시광고법";
 export const DEFAULT_CHANNELS = "모든 채널";
+const DEFAULT_OCR_LANGUAGES = 'kor+eng';
+const DEFAULT_OCR_CACHE_PATH = '/tmp/tesseract-cache';
 
 // Helpers
 export function repairAndParseJson(text: string, fallback: any = null): any {
@@ -111,6 +115,27 @@ export interface LLMAdapterPayload {
   customEndpoint: string | undefined | null;
   customApiKey: string | undefined | null;
   globalApiKey: string | undefined;
+  forceImageInput?: boolean;
+}
+
+export type ImageTextExtractor = (imagePayloads: readonly string[]) => Promise<string>;
+export type VisionProbeFunction = (params: VisionProbeParams) => Promise<VisionProbeResult>;
+
+interface VisionProbeParams {
+  readonly imagePayload: string;
+  readonly customModel: string | undefined | null;
+  readonly customEndpoint: string | undefined | null;
+  readonly customApiKey: string | undefined | null;
+}
+
+type VisionProbeResult =
+  | { readonly kind: 'supported'; readonly reason: string }
+  | { readonly kind: 'unsupported'; readonly reason: string };
+
+interface OcrFallbackContext {
+  readonly used: boolean;
+  readonly extractedText: string;
+  readonly notice: string;
 }
 
 export interface LLMAdapter {
@@ -124,6 +149,194 @@ export class MissingApiKeyError extends Error {
     this.code = 'MISSING_API_KEY';
   }
 }
+
+export class ProviderRateLimitError extends Error {
+  readonly code = 'QUOTA_EXCEEDED';
+
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'ProviderRateLimitError';
+  }
+}
+
+const getErrorMessage = (err: unknown): string => (
+  err instanceof Error ? err.message : String(err)
+);
+
+export const isProviderRateLimitError = (err: unknown): boolean => {
+  if (err instanceof ProviderRateLimitError) return true;
+  const message = getErrorMessage(err);
+  return message.includes('RESOURCE_EXHAUSTED') ||
+    message.includes('Quota exceeded') ||
+    message.includes('quota exceeded') ||
+    message.includes('429');
+};
+
+const isProviderAuthError = (err: unknown): boolean => {
+  const message = getErrorMessage(err);
+  return message.includes('API_KEY_INVALID') ||
+    message.includes('API key not valid') ||
+    message.includes('API_KEY_UNAUTHORIZED') ||
+    message.includes('Endpoint returned status 401') ||
+    message.includes('Endpoint returned status 403');
+};
+
+const isRecoverableRoutingError = (err: unknown): boolean => (
+  !isProviderRateLimitError(err) && !isProviderAuthError(err) && !(err instanceof MissingApiKeyError)
+);
+
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+);
+
+const extractChatCompletionContent = (data: unknown): string => {
+  if (!isRecord(data) || !Array.isArray(data.choices)) {
+    return '';
+  }
+
+  const firstChoice = data.choices[0];
+  if (!isRecord(firstChoice) || !isRecord(firstChoice.message)) {
+    return '';
+  }
+
+  const content = firstChoice.message.content;
+  return typeof content === 'string' ? content : '';
+};
+
+const isImageCapabilityErrorMessage = (message: string): boolean => {
+  const normalized = message.toLowerCase();
+  return normalized.includes('image_url') ||
+    normalized.includes('image input') ||
+    normalized.includes('images are not supported') ||
+    normalized.includes('does not support images') ||
+    normalized.includes('does not support vision') ||
+    normalized.includes('multimodal') ||
+    normalized.includes('multi-modal') ||
+    normalized.includes('unsupported content type') ||
+    normalized.includes('invalid content type') ||
+    normalized.includes('only text') ||
+    normalized.includes('text only') ||
+    normalized.includes('vision is not supported');
+};
+
+const isImageCapabilityError = (err: unknown): boolean => (
+  isImageCapabilityErrorMessage(getErrorMessage(err))
+);
+
+const collectImagePayloads = (
+  imageB64: string | undefined | null,
+  imagesB64: readonly string[] | undefined | null
+): string[] => {
+  const imagePayloads: string[] = [];
+  if (Array.isArray(imagesB64) && imagesB64.length > 0) {
+    imagesB64.forEach((image) => {
+      if (typeof image === 'string' && image.trim()) {
+        imagePayloads.push(image.trim());
+      }
+    });
+  } else if (imageB64 && typeof imageB64 === 'string' && imageB64.trim()) {
+    imagePayloads.push(imageB64.trim());
+  }
+  return imagePayloads;
+};
+
+export const probeModelVisionCapability = async (params: VisionProbeParams): Promise<VisionProbeResult> => {
+  const endpointBase = params.customEndpoint && params.customEndpoint.trim() ? params.customEndpoint.trim() : "http://localhost:11434/v1";
+  const cleanEndpoint = endpointBase.endsWith('/') ? endpointBase.slice(0, -1) : endpointBase;
+  const model = params.customModel && params.customModel.trim() ? params.customModel.trim() : "llama3";
+  const cleanImagePayload = params.imagePayload.startsWith("data:")
+    ? params.imagePayload
+    : `data:image/png;base64,${params.imagePayload}`;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (params.customApiKey && params.customApiKey.trim()) {
+    headers["Authorization"] = `Bearer ${params.customApiKey.trim()}`;
+  }
+
+  const response = await fetch(`${cleanEndpoint}/chat/completions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: "system",
+          content: "You are a capability detector. Reply with exactly VISION_SUPPORTED only if you can inspect the attached image content. Otherwise reply exactly VISION_UNSUPPORTED."
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Can you inspect the attached image? Reply exactly VISION_SUPPORTED or VISION_UNSUPPORTED." },
+            { type: "image_url", image_url: { url: cleanImagePayload } }
+          ]
+        }
+      ],
+      temperature: 0,
+      max_tokens: 8
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    const message = `Vision probe returned status ${response.status}: ${errorText}`;
+    if (response.status === 429) {
+      throw new ProviderRateLimitError(message);
+    }
+    if (isImageCapabilityErrorMessage(message)) {
+      return { kind: 'unsupported', reason: message };
+    }
+    throw new Error(message);
+  }
+
+  const content = extractChatCompletionContent(await response.json()).trim().toLowerCase();
+  if (content.includes('vision_supported')) {
+    return { kind: 'supported', reason: '사전 이미지 probe에서 멀티모달 처리가 가능하다고 응답했습니다.' };
+  }
+  return { kind: 'unsupported', reason: `사전 이미지 probe 응답이 멀티모달 지원을 확인하지 못했습니다: ${content || 'empty response'}` };
+};
+
+export const extractTextFromImages = async (imagePayloads: readonly string[]): Promise<string> => {
+  const { default: Tesseract } = await import('tesseract.js');
+  Tesseract.setLogging(false);
+  const languages = process.env.OCR_LANGUAGES || DEFAULT_OCR_LANGUAGES;
+  const cachePath = process.env.OCR_CACHE_PATH || DEFAULT_OCR_CACHE_PATH;
+  await fs.mkdir(cachePath, { recursive: true });
+
+  const extractedTexts = await Promise.all(imagePayloads.map(async (imagePayload, index) => {
+    const result = await Tesseract.recognize(imagePayload, languages, { cachePath });
+    const text = result.data.text.trim();
+    return text ? `[이미지 ${index + 1} OCR]\n${text}` : '';
+  }));
+
+  return extractedTexts.filter((text) => text.trim()).join('\n\n');
+};
+
+const buildOcrFallbackContext = async (params: {
+  readonly imagePayloads: readonly string[];
+  readonly modelName: string | undefined | null;
+  readonly extractor: ImageTextExtractor;
+  readonly reason: string;
+}): Promise<OcrFallbackContext> => {
+  const modelName = params.modelName && params.modelName.trim() ? params.modelName.trim() : '선택한 OpenAI-compatible/로컬 모델';
+  let extractedText = '';
+  let ocrErrorMessage = '';
+  try {
+    extractedText = (await params.extractor(params.imagePayloads)).trim();
+  } catch (err: unknown) {
+    ocrErrorMessage = getErrorMessage(err);
+  }
+
+  const notice = extractedText
+    ? `${params.reason} 첨부 이미지는 서버 OCR로 문구를 추출한 뒤 OCR 텍스트만 광고 심사에 반영했습니다.`
+    : ocrErrorMessage
+      ? `${params.reason} 서버 OCR을 실행했지만 실패했습니다. OCR 오류: ${ocrErrorMessage}. 따라서 시각 요소 평가는 제외되고 입력 텍스트만 심사했습니다.`
+    : `${params.reason} 서버 OCR을 실행했지만, 이미지에서 판독 가능한 문구를 찾지 못했습니다. 따라서 시각 요소 평가는 제외되고 입력 텍스트만 심사했습니다.`;
+
+  return {
+    used: true,
+    extractedText,
+    notice
+  };
+};
 
 export async function executeLLMAnalysis(payload: LLMAdapterPayload, adapterType: string): Promise<SystemAnalysisResult> {
   const { textStr, imageB64, imagesB64, systemInstruction, customModel, customEndpoint, customApiKey, globalApiKey } = payload;
@@ -142,12 +355,7 @@ export async function executeLLMAnalysis(payload: LLMAdapterPayload, adapterType
     const adText = textStr.trim() ? `"${textStr}"` : `"(텍스트는 별도로 입력하지 않았음. 이미지 내부의 텍스트와 시각 요소를 바탕으로 심사해주십시오.)"`;
     const parts: any[] = [{ text: `아래 내용을 분석해주십시오:\n\n광고 텍스트 원안: ${adText}` }];
     
-    const imagePayloads: string[] = [];
-    if (Array.isArray(imagesB64) && imagesB64.length > 0) {
-      imagesB64.forEach((img) => { if (typeof img === 'string' && img.trim()) imagePayloads.push(img.trim()); });
-    } else if (imageB64 && typeof imageB64 === 'string' && imageB64.trim()) {
-      imagePayloads.push(imageB64.trim());
-    }
+    const imagePayloads = collectImagePayloads(imageB64, imagesB64);
 
     if (imagePayloads.length > 0) {
       imagePayloads.forEach((imgData) => {
@@ -162,6 +370,11 @@ export async function executeLLMAnalysis(payload: LLMAdapterPayload, adapterType
       model: "gemini-2.5-flash",
       contents: { parts },
       config: { systemInstruction, responseMimeType: "application/json" }
+    }).catch((err: unknown) => {
+      if (isProviderRateLimitError(err)) {
+        throw new ProviderRateLimitError(getErrorMessage(err), { cause: err });
+      }
+      throw err;
     });
 
     return { responseText: response.text || "", usageMetadata: response.usageMetadata };
@@ -175,19 +388,8 @@ export async function executeLLMAnalysis(payload: LLMAdapterPayload, adapterType
 
     const userParts: any[] = [{ type: "text", text: `아래 내용을 광고 법률 기준에 따라 정밀 분석하여 법규 제재 항목, 벌점, 그리고 준법 대체 텍스트를 JSON 스키마 규격으로 즉시 도출하시오.\n\n광고 텍스트 원안: "${textStr}"` }];
     
-    const imagePayloads: string[] = [];
-    if (Array.isArray(imagesB64) && imagesB64.length > 0) {
-      imagesB64.forEach((img) => { if (typeof img === 'string' && img.trim()) imagePayloads.push(img.trim()); });
-    } else if (imageB64 && typeof imageB64 === 'string' && imageB64.trim()) {
-      imagePayloads.push(imageB64.trim());
-    }
-
-    const modelNameLower = (customModel || "").toLowerCase();
-    const supportsVision = modelNameLower.includes("vision") || 
-                           modelNameLower.includes("gemini") || 
-                           modelNameLower.includes("gpt-4o") || 
-                           modelNameLower.includes("claude-3") || 
-                           modelNameLower.includes("llava");
+    const imagePayloads = collectImagePayloads(imageB64, imagesB64);
+    const supportsVision = payload.forceImageInput === true || modelSupportsVision(customModel);
 
     if (imagePayloads.length > 0) {
       if (supportsVision) {
@@ -219,7 +421,12 @@ export async function executeLLMAnalysis(payload: LLMAdapterPayload, adapterType
     });
 
     if (!fetchResponse.ok) {
-      throw new Error(`Endpoint returned status ${fetchResponse.status}: ${await fetchResponse.text()}`);
+      const errorText = await fetchResponse.text();
+      const message = `Endpoint returned status ${fetchResponse.status}: ${errorText}`;
+      if (fetchResponse.status === 429) {
+        throw new ProviderRateLimitError(message);
+      }
+      throw new Error(message);
     }
 
     const resJson = await fetchResponse.json() as any;
@@ -240,6 +447,10 @@ export async function performAnalysis(params: {
   additionalContext: any;
   analysisMode?: any;
   globalApiKey: string | undefined;
+  ocrExtractor?: ImageTextExtractor;
+  visionProbe?: VisionProbeFunction;
+  forceOcrFallback?: boolean;
+  ocrFallbackReason?: string;
 }) {
   const {
     text,
@@ -258,6 +469,49 @@ export async function performAnalysis(params: {
   const startTime = Date.now();
   const textStr = typeof text === 'string' ? text : "";
   let usageMetadata: any = null;
+  const originalImagePayloads = collectImagePayloads(imageB64, imagesB64);
+  const adapterTypeStr = typeof adapterType === 'string' ? adapterType : '';
+  const customModelStr = typeof customModel === 'string' ? customModel : '';
+  const probeRequired = !params.forceOcrFallback && shouldProbeVisionCapability({
+    adapterType: adapterTypeStr,
+    modelName: customModelStr,
+    hasImages: originalImagePayloads.length > 0,
+  });
+  const visionProbeResult = probeRequired
+    ? await (params.visionProbe || probeModelVisionCapability)({
+      imagePayload: originalImagePayloads[0] || '',
+      customModel: customModelStr,
+      customEndpoint: typeof customEndpoint === 'string' ? customEndpoint : '',
+      customApiKey: typeof customApiKey === 'string' ? customApiKey : '',
+    })
+    : { kind: 'supported', reason: modelSupportsVision(customModelStr) ? '검증된 비전 모델 카탈로그와 일치하여 probe를 생략했습니다.' : '이미지 probe가 필요하지 않은 구성입니다.' };
+  const modelNameForNotice = customModelStr.trim() ? customModelStr.trim() : '선택한 OpenAI-compatible/로컬 모델';
+  const shouldFallbackToOcr = params.forceOcrFallback || visionProbeResult.kind === 'unsupported';
+  const ocrFallbackReason = params.ocrFallbackReason || (
+    visionProbeResult.kind === 'unsupported'
+      ? `${modelNameForNotice}의 사전 이미지 처리 probe에서 멀티모달 지원을 확인하지 못했습니다.`
+      : `${modelNameForNotice}의 이미지 직접 처리 요청이 실패했습니다.`
+  );
+  const ocrFallback = shouldFallbackToOcr
+    ? await buildOcrFallbackContext({
+      imagePayloads: originalImagePayloads,
+      modelName: customModelStr,
+      extractor: params.ocrExtractor || extractTextFromImages,
+      reason: ocrFallbackReason,
+    })
+    : { used: false, extractedText: '', notice: '' };
+  const textStrForAnalysis = ocrFallback.used
+    ? `${textStr}${textStr ? '\n\n' : ''}[OCR 추출 이미지 문구]\n${ocrFallback.extractedText || '(OCR에서 판독 가능한 문구 없음)'}`
+    : textStr;
+  const imageB64ForAnalysis = ocrFallback.used ? null : imageB64;
+  const imagesB64ForAnalysis = ocrFallback.used ? null : imagesB64;
+  const forceImageInput = !ocrFallback.used && adapterTypeStr !== 'GEMINI' && visionProbeResult.kind === 'supported';
+  const canRetryWithOcrFallback = !ocrFallback.used && originalImagePayloads.length > 0 && adapterTypeStr !== 'GEMINI';
+  const retryWithOcrFallback = (reason: string) => performAnalysis({
+    ...params,
+    forceOcrFallback: true,
+    ocrFallbackReason: reason,
+  });
 
   const activeApiKey = (typeof customApiKey === 'string' && customApiKey.trim()) ? customApiKey.trim() : globalApiKey;
 
@@ -294,7 +548,7 @@ export async function performAnalysis(params: {
   }
 
   // Combine input sources dynamically for indexing and RAG alignment
-  let combinedInputText = textStr;
+  let combinedInputText = textStrForAnalysis;
   if (websiteText) {
     combinedInputText += `\n[수집된 웹페이지 내용]:\n${websiteText}`;
   }
@@ -361,14 +615,15 @@ export async function performAnalysis(params: {
   let hasUsage = false;
 
   const orchestratorPayload: LLMAdapterPayload = {
-    textStr,
-    imageB64,
-    imagesB64,
+    textStr: textStrForAnalysis,
+    imageB64: imageB64ForAnalysis,
+    imagesB64: imagesB64ForAnalysis,
     systemInstruction: `${getOrchestratorRoutingInstruction()}\n\n[참조 준법 가이드라인 데이터베이스]\n${fullLibraryContext}`,
     customModel,
     customEndpoint,
     customApiKey,
-    globalApiKey
+    globalApiKey,
+    forceImageInput
   };
 
   let routeDecision = {
@@ -394,8 +649,11 @@ export async function performAnalysis(params: {
 
   const hasCustomKey = !!(customApiKey && customApiKey.trim());
   const finalMode = hasCustomKey ? analysisMode : 'optimized';
+  const isGeminiAdapter = adapterType === 'GEMINI' || !adapterType;
+  const hasImageInput = originalImagePayloads.length > 0;
+  const shouldUseConsolidatedGeminiReview = isGeminiAdapter && hasImageInput;
 
-  if (finalMode === 'full') {
+  if (finalMode === 'full' || shouldUseConsolidatedGeminiReview) {
     routeDecision = {
       needLegalProduct: true,
       needLegalFinance: true,
@@ -449,6 +707,12 @@ export async function performAnalysis(params: {
         routeDecision.copyrightSegment = typeof parsedRoute.copyrightSegment === 'string' ? parsedRoute.copyrightSegment.trim() : "";
       }
     } catch (err) {
+      if (canRetryWithOcrFallback && isImageCapabilityError(err)) {
+        return retryWithOcrFallback(`${modelNameForNotice}의 이미지 직접 처리 probe 이후 실제 분석 요청에서 이미지 입력 미지원 오류가 발생했습니다.`);
+      }
+      if (!isRecoverableRoutingError(err)) {
+        throw err;
+      }
       console.warn("Orchestrator routing failed, falling back to full review:", err);
       routeDecision = {
         needLegalProduct: true,
@@ -473,130 +737,176 @@ export async function performAnalysis(params: {
     }
   }
 
-  const payloads: any[] = [];
-  if (routeDecision.needLegalProduct) {
+  const payloads: LLMAdapterPayload[] = [];
+  if (shouldUseConsolidatedGeminiReview) {
     payloads.push({
-      textStr: routeDecision.legalProductSegment || textStr,
-      imageB64,
-      imagesB64,
-      systemInstruction: systemInstructionLegalProduct,
+      textStr: combinedInputText || textStrForAnalysis,
+      imageB64: imageB64ForAnalysis,
+      imagesB64: imagesB64ForAnalysis,
+      systemInstruction: `${getSystemInstruction(fullLibraryContext, fewShotContext)}
+
+[Gemini 이미지 통합 검토 지시]
+첨부 이미지가 있는 경우에는 다중 에이전트 팬아웃 대신 이 단일 호출에서 식의약/보건, 금융/게임, 공정거래/전자상거래, 정보망/아동복지, 사회적 논란, ESG, 개인정보, 청소년 보호, 저작권/상표권 위험을 모두 종합 심사하십시오.
+반드시 기존 JSON 스키마를 유지하고, 이미지 내부 문구와 시각 요소의 위반 사항도 violations, matchedLaws, imageAlternativeProposal에 병합해 반환하십시오.`,
       customModel,
       customEndpoint,
       customApiKey,
-      globalApiKey
+      globalApiKey,
+      forceImageInput
     });
-  }
-  if (routeDecision.needLegalFinance) {
-    payloads.push({
-      textStr: routeDecision.legalFinanceSegment || textStr,
-      imageB64,
-      imagesB64,
-      systemInstruction: systemInstructionLegalFinance,
-      customModel,
-      customEndpoint,
-      customApiKey,
-      globalApiKey
-    });
-  }
-  if (routeDecision.needLegalCommerce) {
-    payloads.push({
-      textStr: routeDecision.legalCommerceSegment || textStr,
-      imageB64,
-      imagesB64,
-      systemInstruction: systemInstructionLegalCommerce,
-      customModel,
-      customEndpoint,
-      customApiKey,
-      globalApiKey
-    });
-  }
-  if (routeDecision.needLegalNet) {
-    payloads.push({
-      textStr: routeDecision.legalNetSegment || textStr,
-      imageB64,
-      imagesB64,
-      systemInstruction: systemInstructionLegalNet,
-      customModel,
-      customEndpoint,
-      customApiKey,
-      globalApiKey
-    });
-  }
-  if (routeDecision.needSocial) {
-    payloads.push({
-      textStr: routeDecision.socialSegment || textStr,
-      imageB64,
-      imagesB64,
-      systemInstruction: systemInstructionSocial,
-      customModel,
-      customEndpoint,
-      customApiKey,
-      globalApiKey
-    });
-  }
-  if (routeDecision.needEsg) {
-    payloads.push({
-      textStr: routeDecision.esgSegment || textStr,
-      imageB64,
-      imagesB64,
-      systemInstruction: systemInstructionEsg,
-      customModel,
-      customEndpoint,
-      customApiKey,
-      globalApiKey
-    });
-  }
-  if (routeDecision.needPrivacy) {
-    payloads.push({
-      textStr: routeDecision.privacySegment || textStr,
-      imageB64,
-      imagesB64,
-      systemInstruction: systemInstructionPrivacy,
-      customModel,
-      customEndpoint,
-      customApiKey,
-      globalApiKey
-    });
-  }
-  if (routeDecision.needYouth) {
-    payloads.push({
-      textStr: routeDecision.youthSegment || textStr,
-      imageB64,
-      imagesB64,
-      systemInstruction: systemInstructionYouth,
-      customModel,
-      customEndpoint,
-      customApiKey,
-      globalApiKey
-    });
-  }
-  if (routeDecision.needCopyright) {
-    payloads.push({
-      textStr: routeDecision.copyrightSegment || textStr,
-      imageB64,
-      imagesB64,
-      systemInstruction: systemInstructionCopyright,
-      customModel,
-      customEndpoint,
-      customApiKey,
-      globalApiKey
-    });
+  } else {
+    if (routeDecision.needLegalProduct) {
+      payloads.push({
+        textStr: routeDecision.legalProductSegment || textStrForAnalysis,
+        imageB64: imageB64ForAnalysis,
+        imagesB64: imagesB64ForAnalysis,
+        systemInstruction: systemInstructionLegalProduct,
+        customModel,
+        customEndpoint,
+        customApiKey,
+        globalApiKey,
+        forceImageInput
+      });
+    }
+    if (routeDecision.needLegalFinance) {
+      payloads.push({
+        textStr: routeDecision.legalFinanceSegment || textStrForAnalysis,
+        imageB64: imageB64ForAnalysis,
+        imagesB64: imagesB64ForAnalysis,
+        systemInstruction: systemInstructionLegalFinance,
+        customModel,
+        customEndpoint,
+        customApiKey,
+        globalApiKey,
+        forceImageInput
+      });
+    }
+    if (routeDecision.needLegalCommerce) {
+      payloads.push({
+        textStr: routeDecision.legalCommerceSegment || textStrForAnalysis,
+        imageB64: imageB64ForAnalysis,
+        imagesB64: imagesB64ForAnalysis,
+        systemInstruction: systemInstructionLegalCommerce,
+        customModel,
+        customEndpoint,
+        customApiKey,
+        globalApiKey,
+        forceImageInput
+      });
+    }
+    if (routeDecision.needLegalNet) {
+      payloads.push({
+        textStr: routeDecision.legalNetSegment || textStrForAnalysis,
+        imageB64: imageB64ForAnalysis,
+        imagesB64: imagesB64ForAnalysis,
+        systemInstruction: systemInstructionLegalNet,
+        customModel,
+        customEndpoint,
+        customApiKey,
+        globalApiKey,
+        forceImageInput
+      });
+    }
+    if (routeDecision.needSocial) {
+      payloads.push({
+        textStr: routeDecision.socialSegment || textStrForAnalysis,
+        imageB64: imageB64ForAnalysis,
+        imagesB64: imagesB64ForAnalysis,
+        systemInstruction: systemInstructionSocial,
+        customModel,
+        customEndpoint,
+        customApiKey,
+        globalApiKey,
+        forceImageInput
+      });
+    }
+    if (routeDecision.needEsg) {
+      payloads.push({
+        textStr: routeDecision.esgSegment || textStrForAnalysis,
+        imageB64: imageB64ForAnalysis,
+        imagesB64: imagesB64ForAnalysis,
+        systemInstruction: systemInstructionEsg,
+        customModel,
+        customEndpoint,
+        customApiKey,
+        globalApiKey,
+        forceImageInput
+      });
+    }
+    if (routeDecision.needPrivacy) {
+      payloads.push({
+        textStr: routeDecision.privacySegment || textStrForAnalysis,
+        imageB64: imageB64ForAnalysis,
+        imagesB64: imagesB64ForAnalysis,
+        systemInstruction: systemInstructionPrivacy,
+        customModel,
+        customEndpoint,
+        customApiKey,
+        globalApiKey,
+        forceImageInput
+      });
+    }
+    if (routeDecision.needYouth) {
+      payloads.push({
+        textStr: routeDecision.youthSegment || textStrForAnalysis,
+        imageB64: imageB64ForAnalysis,
+        imagesB64: imagesB64ForAnalysis,
+        systemInstruction: systemInstructionYouth,
+        customModel,
+        customEndpoint,
+        customApiKey,
+        globalApiKey,
+        forceImageInput
+      });
+    }
+    if (routeDecision.needCopyright) {
+      payloads.push({
+        textStr: routeDecision.copyrightSegment || textStrForAnalysis,
+        imageB64: imageB64ForAnalysis,
+        imagesB64: imagesB64ForAnalysis,
+        systemInstruction: systemInstructionCopyright,
+        customModel,
+        customEndpoint,
+        customApiKey,
+        globalApiKey,
+        forceImageInput
+      });
+    }
   }
 
-  const agentResults = await Promise.all(payloads.map(p => executeLLMAnalysis(p, adapterType)));
-
+  const agentResults = await Promise.allSettled(payloads.map(p => executeLLMAnalysis(p, adapterType)));
   const parsedAgentsData: any[] = [];
+  const failedAgentMessages: string[] = [];
+  let firstAgentFailure: unknown = null;
+
   agentResults.forEach((result, idx) => {
-    if (result.usageMetadata) {
+    if (result.status === 'rejected') {
+      firstAgentFailure ??= result.reason;
+      failedAgentMessages.push(`Agent ${idx + 1}: ${getErrorMessage(result.reason)}`);
+      return;
+    }
+
+    const agentResult = result.value;
+    if (agentResult.usageMetadata) {
       hasUsage = true;
-      promptTokens += result.usageMetadata.promptTokenCount || 0;
-      completionTokens += result.usageMetadata.candidatesTokenCount || 0;
-      totalTokens += result.usageMetadata.totalTokenCount || 0;
+      promptTokens += agentResult.usageMetadata.promptTokenCount || 0;
+      completionTokens += agentResult.usageMetadata.candidatesTokenCount || 0;
+      totalTokens += agentResult.usageMetadata.totalTokenCount || 0;
     }
     
-    const parsed = repairAndParseJson(result.responseText, { score: BASE_SCORE, violations: [], matchedLaws: [], imageAlternativeProposal: null });
+    const parsed = repairAndParseJson(agentResult.responseText, { score: BASE_SCORE, violations: [], matchedLaws: [], imageAlternativeProposal: null });
     parsedAgentsData.push(parsed);
   });
+
+  if (parsedAgentsData.length === 0 && firstAgentFailure) {
+    if (canRetryWithOcrFallback && isImageCapabilityError(firstAgentFailure)) {
+      return retryWithOcrFallback(`${modelNameForNotice}의 이미지 직접 분석 단계에서 이미지 입력 미지원 오류가 발생했습니다.`);
+    }
+    if (firstAgentFailure instanceof Error) {
+      throw firstAgentFailure;
+    }
+    throw new Error(getErrorMessage(firstAgentFailure));
+  }
 
   const agentsActivated: string[] = [];
   if (routeDecision.needLegalProduct) agentsActivated.push("LEGAL_PRODUCT (식의약/보건 규정)");
@@ -760,13 +1070,26 @@ export async function performAnalysis(params: {
     };
   } else {
     // Estimate token count if mock adapter is run
-    const promptTk = Math.round((textStr || "").length * 1.5 + (imageB64 ? 1000 : 0) + 400);
+    const promptTk = Math.round((textStrForAnalysis || "").length * 1.5 + (imageB64ForAnalysis ? 1000 : 0) + 400);
     const completionTk = Math.round(JSON.stringify(finalResultData).length / 3);
     finalResultData.usage = {
       promptTokens: promptTk,
       completionTokens: completionTk,
       totalTokens: promptTk + completionTk
     };
+  }
+
+  if (failedAgentMessages.length > 0) {
+    finalResultData.localLlmError = `일부 전문 에이전트 분석이 실패하여 성공한 결과만 종합했습니다. ${failedAgentMessages.join(' / ')}`;
+  }
+
+  if (ocrFallback.used) {
+    finalResultData.ocrFallbackUsed = true;
+    finalResultData.ocrExtractedText = ocrFallback.extractedText;
+    finalResultData.ocrNotice = ocrFallback.notice;
+    finalResultData.localLlmError = finalResultData.localLlmError
+      ? `${ocrFallback.notice} ${finalResultData.localLlmError}`
+      : ocrFallback.notice;
   }
 
   finalResultData.pastCases = fewShots.map(fs => ({
@@ -781,8 +1104,8 @@ export async function performAnalysis(params: {
   // Record this evaluation event dynamically to our knowledge-base feed so that it cumulates self-learning!
   addToHistoryCollection({
     id: `hist_${Date.now()}`,
-    inputText: textStr || "(이미지 단독 심사)",
-    imagePresent: !!(imageB64 || (Array.isArray(imagesB64) && imagesB64.length > 0)),
+    inputText: textStrForAnalysis || "(이미지 단독 심사)",
+    imagePresent: originalImagePayloads.length > 0,
     score: finalResultData.score,
     verdict: finalResultData.score >= 80 ? 'Approved' : 'Rejected',
     meta: finalResultData.parsedMeta,

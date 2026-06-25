@@ -3,34 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
-import { 
-  ShieldCheck, 
-  Moon, 
-  Sun, 
-  History, 
-  Gauge, 
-  FileText, 
-  Printer, 
-  Cpu, 
-  Settings, 
-  Loader2, 
-  Github
-} from 'lucide-react';
-
+import { useEffect, useState } from 'react';
 import type { BenchmarkCase } from './types';
 import type { HistoryItem } from './types/api';
+import { AppFooter } from './components/app/AppFooter';
+import { AppNavigation } from './components/app/AppNavigation';
+import { AppTabPanels } from './components/app/AppTabPanels';
+import { PrintReportModal } from './components/app/PrintReportModal';
+import type { AppTab } from './components/app/appTypes';
+import type { ReviewInputMode } from './components/review/ReviewTab.types';
 import { useApp } from './contexts/AppContext';
-import { apiClient } from './services/api';
-import { SettingsTab } from './components/SettingsTab';
-import { AboutTab } from './components/AboutTab';
-import { BenchmarkTab } from './components/BenchmarkTab';
-import { HistoryTab } from './components/HistoryTab';
-import { MobileTabBar } from './components/MobileTabBar';
-import { ReviewTab } from './components/ReviewTab';
 import { useAnalysisRunner } from './hooks/useAnalysisRunner';
 import { useBenchmarkRunner } from './hooks/useBenchmarkRunner';
 import { useImageUploads } from './hooks/useImageUploads';
+import { apiClient } from './services/api';
+import { browserPrintAdapter } from './utils/print/browserPrintAdapter';
 import {
   buildMarkdownReport,
   getCsatGradeInfo,
@@ -43,13 +30,20 @@ export default function App() {
   const llm = useApp();
   const { darkMode, setDarkMode, fontSize, setFontSize, activeTab, setActiveTab } = llm;
 
-  const [copied, setCopied] = useState<boolean>(false);
-  const [inputMode, setInputMode] = useState<'text' | 'url'>('text');
+  const [copied, setCopied] = useState(false);
+  const [inputMode, setInputMode] = useState<ReviewInputMode>('text');
+  const [inputText, setInputText] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [additionalContext, setAdditionalContext] = useState('');
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showKeyAlert, setShowKeyAlert] = useState(false);
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
+  const [historyCategoryFilter, setHistoryCategoryFilter] = useState('all');
+  const [historyVerdictFilter, setHistoryVerdictFilter] = useState('all');
+  const [showBenchmarkTab, setShowBenchmarkTab] = useState(false);
+  const [benchmarkCases, setBenchmarkCases] = useState<BenchmarkCase[]>([]);
 
-  // Analysis inputs
-  const [inputText, setInputText] = useState<string>("");
-  const [websiteUrl, setWebsiteUrl] = useState<string>("");
-  const [additionalContext, setAdditionalContext] = useState<string>("");
   const {
     uploadedImages,
     dragActive,
@@ -59,46 +53,30 @@ export default function App() {
     clearAllImages,
     removeUploadedImage,
   } = useImageUploads();
-  const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
-
-  // Special UI alerts for Gemini API key validation or Quota exhaustion
-  const [showKeyAlert, setShowKeyAlert] = useState<boolean>(false);
-
-  // History ledger (from backend feed)
-  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
-  const [historySearchQuery, setHistorySearchQuery] = useState<string>("");
-  const [historyCategoryFilter, setHistoryCategoryFilter] = useState<string>("all");
-  const [historyVerdictFilter, setHistoryVerdictFilter] = useState<string>("all");
-
-  // Benchmarking states
-  const [showBenchmarkTab, setShowBenchmarkTab] = useState<boolean>(false);
-  const [benchmarkCases, setBenchmarkCases] = useState<BenchmarkCase[]>([]);
-
-  // Load history & benchmark on init
-  useEffect(() => {
-    fetchHistory();
-    fetchBenchmarkCases();
-    
-    setShowBenchmarkTab(false);
-  }, [activeTab]);
 
   const fetchHistory = async () => {
     try {
       const data = await apiClient.getHistory();
       setHistoryItems(data);
     } catch {
-      console.warn("Failed to retrieve history nodes.");
+      console.warn('Failed to retrieve history nodes.');
     }
   };
 
   const fetchBenchmarkCases = async () => {
     try {
       const data = await apiClient.getBenchmarkCases();
-      setBenchmarkCases(data.map((c) => ({ ...c, status: 'pending' })));
+      setBenchmarkCases(data.map((item) => ({ ...item, status: 'pending' })));
     } catch {
-      console.warn("Failed to load benchmark index.");
+      console.warn('Failed to load benchmark index.');
     }
   };
+
+  useEffect(() => {
+    fetchHistory();
+    fetchBenchmarkCases();
+    setShowBenchmarkTab(false);
+  }, [activeTab]);
 
   const {
     loading,
@@ -138,360 +116,19 @@ export default function App() {
     setErrorText,
   });
 
+  const getMarkdownReportString = (): string => buildMarkdownReport(analysisResult, llm.customModel);
+
   const handleCopyMarkdown = () => {
     if (!analysisResult) return;
-    const reportStr = getMarkdownReportString();
-    navigator.clipboard.writeText(reportStr).then(() => {
+    navigator.clipboard.writeText(getMarkdownReportString()).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   };
 
-  const getMarkdownReportString = (): string => buildMarkdownReport(analysisResult, llm.customModel);
-
   const handleOpenPrintTab = () => {
     if (!analysisResult) return;
-    
-    const printWindow = window.open("", "_blank", "width=900,height=990,scrollbars=yes,resizable=yes");
-    if (!printWindow) {
-      alert("새 창(팝업)이 브라우저 설정에 의해 차단되었습니다. 팝업 차단을 해제하고 다시 시도하십시오.");
-      return;
-    }
-
-    const gradeInfo = getCsatGradeInfo(analysisResult.score);
-    const violationsHtml = analysisResult.violations.length === 0 
-      ? `<div style="padding: 16px; text-align: center; border: 1px solid #e2e8f0; border-radius: 8px; color: #059669; font-weight: bold; font-size: 13px; background-color: #f0fdf4;">
-           ✔ 축하합니다! 검출된 위반 조항이나 감점이 없어 1등급 무결성으로 통과를 수여합니다.
-         </div>`
-      : analysisResult.violations.map((v, i) => `
-          <div style="padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background-color: white; margin-bottom: 12px; page-break-inside: avoid;">
-            <div style="display: flex; justify-content: space-between; align-items: center; background-color: #f8fafc; padding: 6px 10px; border-radius: 6px; font-size: 12px; margin-bottom: 8px;">
-              <span style="font-weight: 800; color: #0f172a;">
-                <span style="background-color: #0f172a; color: white; border-radius: 9999px; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; margin-right: 6px;">${i+1}</span>
-                <u>${v.clause}</u>
-              </span>
-              <span style="font-weight: 800; color: #dc2626;">
-                적발 감점: -${v.deductionPoints}점 | 위험도: ${v.severity}
-              </span>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr; gap: 8px; font-size: 11px;">
-              <div>
-                <span style="display: block; font-size: 9px; color: #dc2626; font-weight: 950; margin-bottom: 2px;">법위 위법 소견 (Risk Statement):</span>
-                <p style="color: #1e293b; font-weight: 500; margin: 0; line-height: 1.4;">${v.description}</p>
-                <span style="display: block; font-weight: bold; color: #475569; margin-top: 4px;">위해구절: <span style="font-weight: 800; color: #dc2626; font-family: monospace;">"${v.originalFragment}"</span></span>
-              </div>
-              <div style="margin-top: 6px; padding: 6px; background-color: #f0fdf4; border: 1px solid #d1fae5; border-radius: 4px;">
-                <span style="display: block; font-size: 9px; color: #059669; font-weight: 950; margin-bottom: 2px;">대체 정정 필터 카피 (Compliance Suggestion):</span>
-                <p style="color: #064e3b; font-weight: 800; margin: 0; line-height: 1.4;">"${v.replacement}"</p>
-              </div>
-            </div>
-            <div style="font-size: 8.5px; color: #64748b; margin-top: 8px; border-top: 1px dashed #e2e8f0; padding-top: 6px;">
-              ⚖ 법률 조문 연계: <a href="${makeLawGoLink(v.clause)}" target="_blank" style="color: #4f46e5; text-decoration: underline; font-weight: bold;">${v.clause} 국가법령정보시스템(Law.go.kr) 바로가기 &rarr;</a>
-            </div>
-          </div>
-        `).join("");
-
-    const inputContextHtml = `
-      <div style="padding: 10px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 10px; color: #334155; line-height: 1.5;">
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <td style="width: 25%; font-weight: bold; color: #64748b; padding: 2px 0;">제품 대분류:</td>
-            <td style="font-weight: bold; color: #0f172a; padding: 2px 0;">${analysisResult.parsedMeta.productType || '일반 표시광고'}</td>
-          </tr>
-          <tr>
-            <td style="font-weight: bold; color: #64748b; padding: 2px 0;">조사 특별법령:</td>
-            <td style="font-weight: bold; color: #ea580c; padding: 2px 0;">${analysisResult.parsedMeta.regulatoryDomain || '기본 표시광고법'}</td>
-          </tr>
-          ${inputText.trim() ? `
-            <tr>
-              <td style="vertical-align: top; font-weight: bold; color: #64748b; padding: 4px 0;">제출 광고 원안:</td>
-              <td style="background-color: white; border: 1px solid #e2e8f0; padding: 6px; border-radius: 4px; font-style: italic; color: #0f172a; font-family: sans-serif; font-size: 10.5px; padding: 4px 0;">"${inputText}"</td>
-            </tr>
-          ` : ''}
-          ${websiteUrl.trim() ? `
-            <tr>
-              <td style="font-weight: bold; color: #64748b; padding: 2px 0;">심사 웹페이지 URL:</td>
-              <td style="color: #4f46e5; font-family: monospace; font-weight: bold; padding: 2px 0;">${websiteUrl}</td>
-            </tr>
-          ` : ''}
-          ${additionalContext.trim() ? `
-            <tr>
-              <td style="font-weight: bold; color: #64748b; padding: 2px 0;">추가 맥락:</td>
-              <td style="color: #334155; font-style: italic; padding: 2px 0;">"${additionalContext}"</td>
-            </tr>
-          ` : ''}
-          ${analysisResult.agentsActivated && analysisResult.agentsActivated.length > 0 ? `
-            <tr>
-              <td style="font-weight: bold; color: #64748b; padding: 2px 0; vertical-align: top;">참여 에이전트:</td>
-              <td style="color: #0f172a; font-weight: bold; padding: 2px 0;">${analysisResult.agentsActivated.join(', ')}</td>
-            </tr>
-          ` : ''}
-        </table>
-      </div>
-    `;
-
-    const ocrHtml = analysisResult.imageAlternativeProposal 
-      ? `
-        <div style="margin-bottom: 20px; page-break-inside: avoid;">
-          <span class="section-title">4. 이미지 비주얼 멀티모달 Vision 정밀 교정 보고</span>
-          <div style="margin-top: 10px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background-color: #fcfcfd;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 10.5px; margin-bottom: 8px;">
-              <div style="padding: 8px; background-color: #fff1f2; border: 1px solid #ffe4e6; border-radius: 6px;">
-                <span style="font-size: 8.5px; color: #be123c; font-weight: 800; display: block; margin-bottom: 4px;">원안 시각적 부적합 카피 (OCR):</span>
-                <span style="color: #4c0519; font-weight: 500;">${analysisResult.imageAlternativeProposal.detectedVisualCopys?.join(', ') || '없음'}</span>
-              </div>
-              <div style="padding: 8px; background-color: #ecfdf5; border: 1px solid #d1fae5; border-radius: 6px;">
-                <span style="font-size: 8.5px; color: #047857; font-weight: 800; display: block; margin-bottom: 4px;">수정 시각적 조치 권고사항:</span>
-                <span style="color: #064e3b; font-weight: 500;">${analysisResult.imageAlternativeProposal.visualRemediationSteps?.join(' / ') || '없음'}</span>
-              </div>
-            </div>
-            <div style="margin-top: 8px; padding: 8px; background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px;">
-              <span style="font-size: 8.5px; color: #b45309; font-weight: 800; display: block; margin-bottom: 4px;">🎨 법률 우회 처방 레이아웃 시안 및 지침:</span>
-              <p style="color: #78350f; font-weight: bold; margin: 0; line-height: 1.4; font-size: 10px;">${analysisResult.imageAlternativeProposal.alternativeVisualDraft}</p>
-            </div>
-          </div>
-        </div>
-      `
-      : '';
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>광고 법률 자율 무결성 종합 준법 자문보고서 (No. ANSIM-${Date.now().toString().substring(6)})</title>
-        <meta charset="utf-8">
-        <style>
-          @media print {
-            .no-print { display: none !important; }
-            body { background-color: white !important; color: black !important; padding: 0 !important; }
-            .page { border: none !important; box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
-          }
-          body {
-            background-color: #f1f5f9;
-            color: #0f172a;
-            font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-          }
-          .toolbar {
-            width: 100%;
-            max-width: 210mm;
-            background-color: #1e293b;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-sizing: border-box;
-          }
-          .toolbar-title {
-            font-size: 12px;
-            font-weight: bold;
-          }
-          .btn-print {
-            background-color: #fbbf24;
-            color: #0f172a;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 800;
-            cursor: pointer;
-            margin-right: 8px;
-          }
-          .btn-close {
-            background-color: #475569;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-            cursor: pointer;
-          }
-          .page {
-            background-color: white;
-            width: 100%;
-            max-width: 210mm;
-            min-h-[297mm];
-            box-sizing: border-box;
-            padding: 20mm;
-            border: 1px solid #cbd5e1;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-          }
-          .header {
-            border-bottom: 3px double #0f172a;
-            padding-bottom: 12px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-          }
-          .official-badge {
-            font-size: 8px;
-            background-color: #4f46e5;
-            color: white;
-            padding: 2px 6px;
-            border-radius: 2px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            display: inline-block;
-          }
-          .title {
-            font-size: 18px;
-            font-weight: 900;
-            color: #0f172a;
-            margin: 6px 0 2px 0;
-            font-family: serif;
-          }
-          .subtitle {
-            font-size: 8px;
-            color: #64748b;
-            margin: 0;
-            font-family: monospace;
-            letter-spacing: 0.5px;
-          }
-          .stamp {
-            border: 3px double #d97706;
-            border-radius: 50%;
-            width: 44px;
-            height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            color: #d97706;
-            font-weight: 900;
-            transform: rotate(12deg);
-            margin-bottom: 4px;
-          }
-          .score-grid {
-            display: grid;
-            grid-template-columns: 100px 1fr;
-            gap: 16px;
-            align-items: center;
-            padding-top: 10px;
-          }
-          .score-badge {
-            font-size: 32px;
-            font-weight: 900;
-            text-align: center;
-            background-color: #0f172a;
-            color: white;
-            padding: 8px;
-            border-radius: 12px;
-          }
-          .score-text {
-            font-size: 12px;
-            line-height: 1.5;
-          }
-          .section-title {
-            font-size: 13px;
-            font-weight: 800;
-            background-color: #0f172a;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
-            display: inline-block;
-            margin-bottom: 12px;
-          }
-          .footer {
-            border-top: 1px solid #cbd5e1;
-            padding-top: 16px;
-            margin-top: 24px;
-            font-size: 10px;
-            color: #64748b;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-          }
-          .footer-sign {
-            text-align: center;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 4px;
-            font-weight: bold;
-            color: #0f172a;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="toolbar no-print">
-          <div class="toolbar-title">📄 실시간 정밀 안전 보고서 새창 뷰어 (인쇄 / PDF 저장 전용)</div>
-          <div>
-            <button class="btn-print" onclick="window.print()">🖨️ 인쇄 또는 PDF 저장하기</button>
-            <button class="btn-close" onclick="window.close()">창 닫기</button>
-          </div>
-        </div>
-
-        <div class="page">
-          <div>
-            <div class="header">
-              <div>
-                <span class="official-badge">OFFICIAL COMPLIANCE REPORT</span>
-                <h1 class="title">광고 법률 무결성 종합 준법 자문보고서</h1>
-                <p class="subtitle">COMPREHENSIVE LAW EVALUATION \& AD-AUDITS SYSTEM CERTIFICATE</p>
-              </div>
-              <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                <div class="stamp">준법필인</div>
-                <span style="font-size: 8px; color: #94a3b8; font-family: monospace;">No. ANSIM-${Date.now().toString().substring(4)}</span>
-              </div>
-            </div>
-
-            <div style="margin-bottom: 20px;">
-              <span class="section-title">1. 심의 성능 성적 명세</span>
-              <div style="float: right; font-size: 11px; margin-top: 4px; color: #64748b;">감수 일사: ${new Date().toLocaleDateString('ko-KR')}</div>
-              <div class="score-grid" style="clear: both; margin-top: 10px; padding: 12px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px;">
-                <div class="score-badge">${analysisResult.score}점</div>
-                <div class="score-text">
-                  과적 벌점 연산 결과 귀사는 종합 품질 평점 <strong>${analysisResult.score}점</strong>으로 최종 성적 <strong>${gradeInfo.grade}등급</strong>을 선고받았습니다.<br/>
-                  <span style="color: ${gradeInfo.isPassed ? '#10b981' : '#ef4444'}; font-weight: 800;">
-                    ${gradeInfo.isPassed ? '✔ 자율 가중 기준 합격 규격을 충족합니다.' : '❌ 규격 결함에 의한 자진 제재 정정이 즉시 권고됩니다.'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div style="margin-bottom: 20px;">
-              <span class="section-title">2. 광고 매체 메타포팅 요약</span>
-              ${inputContextHtml}
-            </div>
-
-            <div style="margin-bottom: 20px;">
-              <span class="section-title">3. 광고 제재 조항 검출 및 벌점 감점 내역 (${analysisResult.violations.length}건)</span>
-              <div style="margin-top: 10px;">
-                ${violationsHtml}
-              </div>
-            </div>
-
-            ${ocrHtml}
-          </div>
-
-          <div class="footer">
-            <div style="text-align: left; max-width: 75%;">
-              <p style="font-weight: 800; margin: 0 0 4px 0; color: #0f172a;">아하시스턴트 AI 자율 규제 필터 컴플라이언스 센터</p>
-              <p style="margin: 0; font-size: 8px; line-height: 1.3;">본 법무 인증 보고서는 대한민국 표시광고 관련 법령 및 고시 기준을 토대로 자율 지식 RAG을 결합해 도출되었습니다.</p>
-              <p style="margin: 4px 0 0 0; font-size: 8px; color: #94a3b8;">제작자: WizMasia | wizmasia@gmail.com | 본 웹앱은 사용된 기저 솔루션의 저작권 규정에 적극 복속됩니다.</p>
-            </div>
-            <div style="width: 120px;" class="footer-sign">
-              <div style="font-size: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 4px; color: #94a3b8;">자율심의단장 (대인)</div>
-              <div style="font-size: 13px; font-weight: 900; letter-spacing: 4px;">aHaSys (인)</div>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+    browserPrintAdapter.open({ analysisResult, inputText, websiteUrl, additionalContext });
   };
 
   const clearHistoryLedger = async () => {
@@ -500,455 +137,107 @@ export default function App() {
       setHistoryItems([]);
       setAnalysisResult(null);
     } catch {
-      console.warn("Failed to clear history on endpoint.");
+      console.warn('Failed to clear history on endpoint.');
     }
   };
 
   const restoreHistoryResult = (item: HistoryItem) => {
     setAnalysisResult(item.result || null);
-    setInputText(item.inputText || "");
+    setInputText(item.inputText || '');
     setErrorText(null);
     setActiveTab('review');
   };
 
-  const handleTabSelect = (tab: typeof activeTab) => {
+  const handleTabSelect = (tab: AppTab) => {
     setActiveTab(tab);
     setErrorText(null);
   };
 
   return (
     <div className={`min-h-screen transition-colors duration-300 font-sans tracking-tight ${darkMode ? 'bg-[#060913] text-slate-100 dark' : 'bg-slate-50 text-slate-900'}`}>
-      
-      {/* 🔮 Superb Futuristic Glowing Top Nav bar */}
-      <nav className={`no-print border-b sticky top-0 z-40 backdrop-blur-md px-6 py-4 flex items-center justify-between transition-colors ${darkMode ? 'bg-[#060913]/85 border-slate-900/60' : 'bg-white/90 border-slate-200'}`}>
-        <div 
-          onClick={() => { setActiveTab('review'); setErrorText(null); }}
-          className="flex items-center gap-3 cursor-pointer select-none group"
-        >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-amber-500 flex items-center justify-center text-white font-extrabold text-lg shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform duration-200">
-            🛡️
-          </div>
-          <div>
-            <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded font-black tracking-widest uppercase group-hover:text-indigo-300 transition-colors">Compliance RAG Platform Suite</span>
-            <h1 className={`text-base font-black flex items-center gap-1.5 leading-none mt-1 ${darkMode ? 'text-slate-100' : 'text-slate-950'}`}>
-              <span>아하시스턴트 AI (aHaSys)</span>
-              <span className="text-[11px] text-slate-500 font-normal">v3.5.2 Pro</span>
-            </h1>
-          </div>
-        </div>
-
-        <div className={`hidden lg:flex items-center gap-2 p-1.5 rounded-xl border ${darkMode ? 'bg-slate-900/40 border-slate-800/40' : 'bg-slate-100 border-slate-200'}`}>
-          <button
-            onClick={() => { setActiveTab('review'); setErrorText(null); }}
-            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'review' ? (darkMode ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'bg-indigo-600/10 text-indigo-700 border border-indigo-500/20 shadow-sm font-extrabold') : (darkMode ? 'text-slate-400 hover:text-slate-250 border border-transparent' : 'text-slate-600 hover:text-slate-900 border border-transparent')}`}
-          >
-            <span>✏️ 실시간 심의</span>
-          </button>
-          
-          {showBenchmarkTab && (
-            <button
-              onClick={() => { setActiveTab('benchmark'); setErrorText(null); }}
-              className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'benchmark' ? (darkMode ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'bg-indigo-600/10 text-indigo-700 border border-indigo-500/20 shadow-sm font-extrabold') : (darkMode ? 'text-slate-400 hover:text-slate-250 border border-transparent' : 'text-slate-600 hover:text-slate-900 border border-transparent')}`}
-            >
-              <Gauge className="w-3.5 h-3.5" />
-              <span>📊 무작위 벤치마크 대시보드</span>
-            </button>
-          )}
-          
-          <button
-            onClick={() => { setActiveTab('history'); setErrorText(null); }}
-            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'history' ? (darkMode ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'bg-indigo-600/10 text-indigo-700 border border-indigo-500/20 shadow-sm font-extrabold') : (darkMode ? 'text-slate-400 hover:text-slate-250 border border-transparent' : 'text-slate-600 hover:text-slate-900 border border-transparent')}`}
-          >
-            <History className="w-3.5 h-3.5" />
-            <span>Timeline 저장소</span>
-          </button>
-
-          <button
-            onClick={() => { setActiveTab('about'); setErrorText(null); }}
-            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'about' ? (darkMode ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'bg-indigo-600/10 text-indigo-700 border border-indigo-500/20 shadow-sm font-extrabold') : (darkMode ? 'text-slate-400 hover:text-slate-250 border border-transparent' : 'text-slate-600 hover:text-slate-900 border border-transparent')}`}
-          >
-            <span>📜 플랫폼 지침</span>
-          </button>
-
-          <button
-            onClick={() => { setActiveTab('settings'); setErrorText(null); }}
-            className={`py-2 px-4 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'settings' ? (darkMode ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-md font-extrabold' : 'bg-indigo-600/10 text-indigo-700 border border-indigo-500/20 shadow-sm font-extrabold') : (darkMode ? 'text-slate-400 hover:text-slate-250 border border-transparent' : 'text-slate-600 hover:text-slate-900 border border-transparent')}`}
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span>LLM 설정</span>
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className={`flex rounded-lg p-0.5 no-print border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-250'}`}>
-            <button
-              onClick={() => setFontSize('sm')}
-              className={`px-2 py-1 rounded text-[10px] font-black cursor-pointer transition-colors ${fontSize === 'sm' ? 'bg-indigo-600 text-white shadow-sm' : (darkMode ? 'text-slate-500 hover:text-slate-350' : 'text-slate-600 hover:text-slate-900')}`}
-              title="글꼴 작게"
-            >
-              A-
-            </button>
-            <button
-              onClick={() => setFontSize('md')}
-              className={`px-2 py-1 rounded text-[10px] font-black cursor-pointer transition-colors ${fontSize === 'md' ? 'bg-indigo-600 text-white shadow-sm' : (darkMode ? 'text-slate-500 hover:text-slate-350' : 'text-slate-600 hover:text-slate-900')}`}
-              title="글꼴 표준"
-            >
-              A
-            </button>
-            <button
-              onClick={() => setFontSize('lg')}
-              className={`px-2 py-1 rounded text-[10px] font-black cursor-pointer transition-colors ${fontSize === 'lg' ? 'bg-indigo-600 text-white shadow-sm' : (darkMode ? 'text-slate-500 hover:text-slate-350' : 'text-slate-600 hover:text-slate-900')}`}
-              title="글꼴 크게"
-            >
-              A+
-            </button>
-          </div>
-
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className={`p-2 rounded-xl border transition-colors cursor-pointer ${darkMode ? 'bg-slate-900 border-slate-800 text-amber-400 hover:text-amber-300' : 'bg-slate-100 border-slate-200 text-indigo-600 hover:text-indigo-800'}`}
-            title={darkMode ? "라이트 모드로 전환" : "다크 모드로 전환"}
-          >
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-        </div>
-      </nav>
-
-      <MobileTabBar
+      <AppNavigation
         activeTab={activeTab}
         darkMode={darkMode}
+        fontSize={fontSize}
         showBenchmarkTab={showBenchmarkTab}
         onSelect={handleTabSelect}
+        setDarkMode={setDarkMode}
+        setFontSize={setFontSize}
       />
 
-      {/* Main Container Layout */}
-      <main className={`max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8 no-print ${fontSize === 'sm' ? 'text-size-sm' : fontSize === 'lg' ? 'text-size-lg' : 'text-size-md'}`}>
-        
-        {/* TAB 1: REALTIME REVIEW INTERFACE */}
-        {activeTab === 'review' && (
-          <ReviewTab
-            errorText={errorText}
-            setErrorText={setErrorText}
-            showKeyAlert={showKeyAlert}
-            setShowKeyAlert={setShowKeyAlert}
-            inputMode={inputMode}
-            setInputMode={setInputMode}
-            inputText={inputText}
-            setInputText={setInputText}
-            websiteUrl={websiteUrl}
-            setWebsiteUrl={setWebsiteUrl}
-            additionalContext={additionalContext}
-            setAdditionalContext={setAdditionalContext}
-            uploadedImages={uploadedImages}
-            dragActive={dragActive}
-            handleDrag={handleDrag}
-            handleDrop={handleDrop}
-            handleImageChange={handleImageChange}
-            clearAllImages={clearAllImages}
-            removeUploadedImage={removeUploadedImage}
-            triggerAnalysis={triggerAnalysis}
-            loading={loading}
-            analysisProgress={analysisProgress}
-            analysisStatusMsg={analysisStatusMsg}
-            analysisResult={analysisResult}
-            localLlmErrorText={localLlmErrorText}
-            handleCopyMarkdown={handleCopyMarkdown}
-            copied={copied}
-            setShowPrintModal={setShowPrintModal}
-            analysisMode={analysisMode}
-            setAnalysisMode={setAnalysisMode}
-            getCsatGradeInfo={getCsatGradeInfo}
-            getScoreColor={getScoreColor}
-            getMarkdownReportString={getMarkdownReportString}
-            makeLawGoLink={makeLawGoLink}
-            getSeverityBadge={getSeverityBadge}
-          />
-        )}
+      <AppTabPanels
+        activeTab={activeTab}
+        fontSize={fontSize}
+        showBenchmarkTab={showBenchmarkTab}
+        reviewProps={{
+          errorText,
+          setErrorText,
+          showKeyAlert,
+          setShowKeyAlert,
+          inputMode,
+          setInputMode,
+          inputText,
+          setInputText,
+          websiteUrl,
+          setWebsiteUrl,
+          additionalContext,
+          setAdditionalContext,
+          uploadedImages,
+          dragActive,
+          handleDrag,
+          handleDrop,
+          handleImageChange,
+          clearAllImages,
+          removeUploadedImage,
+          triggerAnalysis,
+          loading,
+          analysisProgress,
+          analysisStatusMsg,
+          analysisResult,
+          localLlmErrorText,
+          handleCopyMarkdown,
+          copied,
+          setShowPrintModal,
+          analysisMode,
+          setAnalysisMode,
+          getCsatGradeInfo,
+          getScoreColor,
+          getMarkdownReportString,
+          makeLawGoLink,
+          getSeverityBadge,
+        }}
+        benchmark={{
+          running: benchmarkRunning,
+          progress: benchmarkProgress,
+          statusMsg: benchmarkStatusMsg,
+          stats: benchmarkStats,
+          cases: benchmarkCases,
+          trigger: triggerBenchmark,
+        }}
+        history={{
+          items: historyItems,
+          searchQuery: historySearchQuery,
+          setSearchQuery: setHistorySearchQuery,
+          categoryFilter: historyCategoryFilter,
+          setCategoryFilter: setHistoryCategoryFilter,
+          verdictFilter: historyVerdictFilter,
+          setVerdictFilter: setHistoryVerdictFilter,
+          clearLedger: clearHistoryLedger,
+          restoreResult: restoreHistoryResult,
+        }}
+      />
 
-        {/* TAB 1.7: LLM CONFIGURE & API KEYS SETTINGS TAB */}
-        {activeTab === 'settings' && (
-          <SettingsTab />
-        )}
+      <AppFooter adapterType={llm.adapterType} customModel={llm.customModel} />
 
-        {/* TAB 1.5: APP DESCRIPTION & GUIDELINES TAB */}
-        {activeTab === 'about' && (
-          <AboutTab />
-        )}
-
-        {/* TAB 2: BENCHMARK SUITE */}
-        {activeTab === 'benchmark' && showBenchmarkTab && (
-          <BenchmarkTab
-            benchmarkRunning={benchmarkRunning}
-            benchmarkProgress={benchmarkProgress}
-            benchmarkStatusMsg={benchmarkStatusMsg}
-            benchmarkStats={benchmarkStats}
-            benchmarkCases={benchmarkCases}
-            triggerBenchmark={triggerBenchmark}
-          />
-        )}
-
-        {/* TAB 3: KNOWLEDGE TIMELINE */}
-        {activeTab === 'history' && (
-          <HistoryTab
-            historyItems={historyItems}
-            historySearchQuery={historySearchQuery}
-            setHistorySearchQuery={setHistorySearchQuery}
-            historyCategoryFilter={historyCategoryFilter}
-            setHistoryCategoryFilter={setHistoryCategoryFilter}
-            historyVerdictFilter={historyVerdictFilter}
-            setHistoryVerdictFilter={setHistoryVerdictFilter}
-            clearHistoryLedger={clearHistoryLedger}
-            setInputText={setInputText}
-            restoreHistoryResult={restoreHistoryResult}
-            getCsatGradeInfo={getCsatGradeInfo}
-          />
-        )}
-
-      </main>
-
-      {/* Humble Footer */}
-      <footer className="py-12 border-t border-slate-800/40 text-center text-xs text-slate-500 space-y-2.5 no-print">
-        <p className="text-[10.5px] text-slate-400 font-bold max-w-3xl mx-auto leading-relaxed">
-          ⚠️ [면책 고지] 본 플랫폼은 일반인인 개인 개발자(WizMasia)가 독자적으로 구축한 비공식 연구용 개인 프로젝트입니다. 공정거래위원회 등 특정 정부 기관 및 사법 기관을 대변하지 않으며, 어떠한 공식 유관 관계도 없습니다. 심사 결과 및 대안 조언은 법적 구속력이 없는 단순 자율 참고용 사항이므로 실제 법적 분쟁이나 처분 결정의 증빙용으로 사용될 수 없습니다.
-        </p>
-        <p>본 플랫폼의 저작권은 가용 오픈소스 및 구성 API 솔루션사(Google Gemini, Tailwind CSS 등)의 라이선스 정책에 상호 복속됩니다.</p>
-        <p className="text-[10.5px]">
-          제작자: WizMasia | 문의 이메일: <a href="mailto:wizmasia@gmail.com" className="underline hover:text-indigo-400">wizmasia@gmail.com</a> | &copy; 2026. WizMasia. All rights reserved.
-        </p>
-        <div className="flex justify-center items-center gap-1.5 text-[11px] text-slate-400 font-bold">
-          <Github className="w-4 h-4 text-slate-400" />
-          <span>공식 소스코드 저장소:</span>
-          <a
-            href="https://github.com/WizMasia/aHaSys"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-indigo-400 hover:text-indigo-300 underline font-black"
-          >
-            GitHub (WizMasia/aHaSys)
-          </a>
-        </div>
-        <p className="text-[10px] text-slate-600">Powered by {llm.adapterType === 'GEMINI' ? 'Gemini API' : 'OpenAI-Compatible'} ({llm.customModel}) Core Adaptor with Autonomous Hybrid RAG Scanners.</p>
-      </footer>
-
-      {/* 💻 PDF/Print Preview Overlay Canvas conforming to the standard A4 Aspect Ratio */}
       {showPrintModal && analysisResult && (
-        <div 
-          id="print-only-modal-container"
-          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md overflow-y-auto p-4 sm:p-8 flex flex-col items-center"
-        >
-          {/* Header Actions Bar shown on screen but completely omitted during real browser print */}
-          <div className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xl no-print">
-            <div className="flex items-center gap-3">
-              <Printer className="w-5 h-5 text-amber-400 animate-pulse shrink-0" />
-              <div className="text-left">
-                <h4 className="font-extrabold text-xs text-slate-200">🖨️ A4 공식 준법 보고서 인쇄 및 PDF 저장 (새 창 뷰어)</h4>
-                <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">
-                  A4 비율 미리보기입니다. <b>[새 창에서 인쇄 및 PDF 저장]</b>을 누른 뒤, 인쇄 대화상자에서 인쇄 대상(Destination)을 <b>[PDF로 저장 (Save as PDF)]</b>으로 지정하시면 디지털 보고서 파일(PDF)로 영구 저장하실 수 있습니다.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleOpenPrintTab}
-                className="py-2 px-4 bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-[11px] rounded-lg hover:from-amber-400 hover:to-yellow-300 transition-all flex items-center gap-1.5 shadow-md shadow-amber-500/10 cursor-pointer"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>새 창에서 인쇄 및 PDF 저장</span>
-              </button>
-              <button
-                onClick={() => setShowPrintModal(false)}
-                className="py-2 px-3 bg-slate-800 hover:bg-slate-750 text-slate-200 font-extrabold text-[11px] rounded-lg transition-all cursor-pointer"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-
-          {/* Real A4 Paper Visual Template Sheet */}
-          <div 
-            className="w-full max-w-[210mm] min-h-[297mm] bg-white text-slate-950 p-6 sm:p-[15mm] shadow-2xl relative border border-slate-300 flex flex-col justify-between font-sans text-xs select-text antialiased leading-relaxed printable-report"
-            style={{ pageBreakInside: 'avoid' }}
-          >
-            {/* Header Stamp and Badge decorative elements */}
-            <div className="border-b-2 border-slate-900 pb-4 mb-4">
-              <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                <div className="text-left space-y-1">
-                  <span className="text-[9px] font-black bg-indigo-600 text-white px-2 py-0.5 rounded uppercase tracking-wider">OFFICIAL AD COMPLIANCE DOSSIER</span>
-                  <h1 className="text-xl font-extrabold tracking-tight text-slate-950 font-serif mt-1">광고 법률 무결성 종합 준법 자문보고서</h1>
-                  <p className="text-[9px] text-slate-500 font-mono tracking-wider">COMPREHENSIVE LAW EVALUATION \& AD-AUDITS SYSTEM CERTIFICATE</p>
-                </div>
-                <div className="text-right flex flex-col items-end gap-1 shrink-0">
-                  <div className="w-12 h-12 rounded-full border-4 border-double border-amber-600 flex items-center justify-center font-black text-amber-600 text-[9px] select-none rotate-12">
-                    준법필인
-                  </div>
-                  <span className="text-[8px] font-mono text-slate-400 font-bold">No. ANSIM-{Date.now().toString().substring(4)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Main stats block */}
-            <div className="space-y-4 flex-1">
-              
-              {/* CSAT Rating Plate & Certification statement */}
-              <div className="p-4 border border-slate-300 rounded-xl bg-slate-50 space-y-3">
-                <div className="flex items-center justify-between gap-4 border-b border-slate-250 pb-2">
-                  <span className="text-[9.5px] font-black bg-slate-900 text-white px-2 py-0.5 rounded">1. 심의 성능 성적 명세</span>
-                  <span className="text-[9px] font-bold text-slate-500">감수 일자: {new Date().toLocaleDateString('ko-KR')}</span>
-                </div>
-
-                {(() => {
-                  const gradeInfo = getCsatGradeInfo(analysisResult.score);
-                  return (
-                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                      <div className="space-y-1 text-left flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-[11.5px] font-black text-slate-900">최종 심사 등급:</span>
-                          <span className="text-[10.5px] font-black text-slate-900 underline decoration-2 decoration-amber-500">
-                            {gradeInfo.label}
-                          </span>
-                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${gradeInfo.isPassed ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                            {gradeInfo.isPassed ? '합격 (PASSED)' : '심사탈락 (REJECTED)'}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-700 leading-normal font-medium">
-                          {gradeInfo.desc} 본 평론 시안은 광고법 제9조 부당기만 배제 가이드와 개별 마케팅 특별 법률 감점 가중치 매트릭스에 기해 생성되었습니다.
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 md:col-span-4 shrink-0">
-                        {/* Grade Medal Box */}
-                        <div className="w-16 h-16 bg-slate-950 text-white rounded-xl flex flex-col items-center justify-center font-bold">
-                          <span className="text-xl font-serif leading-none">{gradeInfo.grade}</span>
-                          <span className="text-[7.5px] tracking-widest mt-0.5">등급</span>
-                        </div>
-                        {/* Score circle */}
-                        <div className="w-14 h-14 rounded-full border-4 border-slate-950 flex flex-col items-center justify-center text-slate-950 font-bold shrink-0">
-                          <span className="text-base leading-none font-black">{analysisResult.score}</span>
-                          <span className="text-[7px] font-bold mt-0.5">SCORE</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Input details */}
-              <div className="space-y-1.5">
-                <span className="text-[9.5px] font-black bg-slate-900 text-white px-2 py-0.5 rounded">2. 심의 검수 대상 원안 데이터</span>
-                <div className="p-3 border border-slate-200 rounded-lg bg-slate-50 space-y-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[9.5px] text-slate-700 leading-tight">
-                    <div>
-                      <span className="font-bold text-slate-505 block">추론 제품 분류군:</span>
-                      <span className="font-extrabold text-slate-900">{analysisResult.parsedMeta.productType}</span>
-                    </div>
-                    <div>
-                      <span className="font-bold text-slate-505 block">해당 특별법령 규격:</span>
-                      <span className="font-extrabold text-slate-900">{analysisResult.parsedMeta.regulatoryDomain}</span>
-                    </div>
-                  </div>
-                  {inputText.trim() && (
-                    <div>
-                      <span className="text-[8.5px] text-slate-505 font-bold block">광고 카피 텍스트:</span>
-                      <p className="text-[10px] text-slate-800 italic leading-relaxed whitespace-pre-wrap max-h-24 overflow-y-auto bg-white p-2 border border-slate-200 rounded mt-0.5 font-medium">
-                        &quot;{inputText}&quot;
-                      </p>
-                    </div>
-                  )}
-                  {websiteUrl.trim() && (
-                    <div>
-                      <span className="text-[8.5px] text-slate-505 font-bold block">수집 웹사이트 주소:</span>
-                      <span className="text-[9.5px] text-indigo-700 font-mono underline break-all">{websiteUrl}</span>
-                    </div>
-                  )}
-                  {additionalContext.trim() && (
-                    <div>
-                      <span className="text-[8.5px] text-slate-505 font-bold block">광고 매체 맥락 추가 사안:</span>
-                      <span className="text-[9.5px] text-slate-700 font-medium italic block">&quot;{additionalContext}&quot;</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Detected Violations List Table */}
-              <div className="space-y-1.5">
-                <span className="text-[9.5px] font-black bg-slate-900 text-white px-2 py-0.5 rounded">3. 광고 제재 조항 검출 및 벌점 감점 내역 ({analysisResult.violations.length}건)</span>
-                {analysisResult.violations.length === 0 ? (
-                  <div className="p-4 rounded-xl text-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 dark:text-emerald-400 text-xs font-bold">
-                    ✔ 축하합니다! 검출된 위반 조항이나 감점이 없어 1등급 무결성으로 통과를 수여합니다.
-                  </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {analysisResult.violations.map((v, i) => (
-                      <div key={v.id || i} className="p-2.5 border border-slate-200 rounded-lg bg-white space-y-1.5 page-break-avoid">
-                        <div className="flex justify-between items-center bg-slate-50 p-1 rounded-md text-[9.5px]">
-                          <span className="font-extrabold text-slate-900 flex items-center gap-1">
-                            <span className="bg-slate-950 text-white text-[8.5px] w-4 h-4 rounded-full flex items-center justify-center font-bold shrink-0">
-                              {i+1}
-                            </span>
-                            <span className="underline decoration-indigo-400">{v.clause}</span>
-                          </span>
-                          <span className="font-extrabold text-rose-600 font-mono">
-                            (적발 감점: -{v.deductionPoints}점) | 위험도: {v.severity}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[9.5px] text-left leading-normal">
-                          <div className="space-y-0.5">
-                            <span className="block text-[8px] text-rose-600 font-black">법위 위법 소견 (Risk Statement):</span>
-                            <p className="text-slate-800 font-medium">{v.description}</p>
-                            <span className="block font-bold text-slate-605">위해구절: <span className="font-mono text-rose-600 font-extrabold">&quot;{v.originalFragment}&quot;</span></span>
-                          </div>
-                          <div className="space-y-0.5">
-                            <span className="block text-[8px] text-emerald-600 font-black">대체 정정 필터 카피 (Compliance Suggestion):</span>
-                            <p className="text-emerald-950 font-extrabold bg-emerald-100/30 p-1 rounded leading-normal border border-emerald-100">
-                              &quot;{v.replacement}&quot;
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {/* Statutory Link */}
-                        <div className="text-[8px] text-left text-slate-500">
-                          ⚖️ 법률 조문 연계: <a href={makeLawGoLink(v.clause)} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-extrabold hover:text-indigo-800">{v.clause} 국가법령정보시스템(Law.go.kr) 원문 보기 &rarr;</a>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Alternatives panel */}
-              {analysisResult.imageAlternativeProposal && (
-                <div className="p-3 border border-indigo-200 rounded-lg bg-indigo-50/20 space-y-1.5 page-break-avoid">
-                  <span className="text-[9.5px] font-black bg-indigo-950 text-white px-2 py-0.5 rounded">4. 이미지 상세 비주얼 구격 및 대체안</span>
-                  <div className="space-y-1 text-[9.5px] text-left leading-relaxed">
-                    {analysisResult.imageAlternativeProposal.detectedVisualCopys?.length > 0 && (
-                      <p><strong className="text-slate-800">&bull; OCR 식별 문구:</strong> {analysisResult.imageAlternativeProposal.detectedVisualCopys.join(', ')}</p>
-                    )}
-                    {analysisResult.imageAlternativeProposal.visualViolations?.length > 0 && (
-                      <p><strong className="text-rose-600">&bull; 검출 시각 위반:</strong> {analysisResult.imageAlternativeProposal.visualViolations.join(' / ')}</p>
-                    )}
-                    <span className="block font-bold text-[8px] text-amber-600 uppercase mt-1">💊 법률 우회 처방 구도 배포 가이드라인 및 시안 제안:</span>
-                    <p className="text-slate-900 leading-normal italic bg-white p-2 border border-indigo-100 rounded text-[9.5px]">
-                      {analysisResult.imageAlternativeProposal.alternativeVisualDraft}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-            </div>
-
-            {/* Footer space */}
-            <div className="pt-4 border-t border-slate-300 mt-4 text-[9px] flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-              <div className="space-y-0.5 text-left text-slate-500">
-                <p className="font-extrabold text-slate-800">아하시스턴트 AI 자율 규제 필터 컴플라이언스 센터</p>
-                <p className="text-[8px]">본 법무 인증 보고서는 대한민국 표시광고 관련 법령 및 고시 기준을 토대로 자율 지식 RAG을 결합해 도출되었습니다.</p>
-              </div>
-              <div className="text-center shrink-0">
-                <p className="font-semibold border-b border-slate-200 pb-1 px-2 text-slate-400">자율심의단장 (대인)</p>
-                <p className="text-[9.5px] font-black text-slate-900 pt-1 tracking-widest">aHaSys (인)</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PrintReportModal
+          analysisResult={analysisResult}
+          inputText={inputText}
+          websiteUrl={websiteUrl}
+          additionalContext={additionalContext}
+          onOpenPrintTab={handleOpenPrintTab}
+          onClose={() => setShowPrintModal(false)}
+        />
       )}
     </div>
   );

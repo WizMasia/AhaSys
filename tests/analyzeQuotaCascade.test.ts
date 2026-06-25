@@ -4,55 +4,15 @@ import test from 'node:test';
 import express from 'express';
 import apiRouter from '../server/routes/api';
 import { performAnalysis } from '../server/services/llmService';
-
-const listen = (server: http.Server): Promise<number> => (
-  new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      if (address === null || typeof address === 'string') {
-        reject(new Error('Server did not bind to a TCP port.'));
-        return;
-      }
-      resolve(address.port);
-    });
-  })
-);
-
-const close = (server: http.Server): Promise<void> => (
-  new Promise((resolve, reject) => {
-    server.close((err) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve();
-    });
-  })
-);
-
-const isRecord = (value: unknown): value is Record<string, unknown> => (
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-);
-
-const readJsonObject = async (response: Response): Promise<Record<string, unknown>> => {
-  const data: unknown = await response.json();
-  assert.ok(isRecord(data));
-  return data;
-};
-
-const readRequestBody = async (req: http.IncomingMessage): Promise<string> => (
-  new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => {
-      chunks.push(chunk);
-    });
-    req.on('end', () => {
-      resolve(Buffer.concat(chunks).toString('utf8'));
-    });
-    req.on('error', reject);
-  })
-);
+import {
+  buildCleanAnalysisResponse,
+  buildRouteResponse,
+  close,
+  isVisionProbeRequest,
+  listen,
+  readJsonObject,
+  readRequestBody,
+} from './helpers/analyzeTestHelpers';
 
 test('analyze returns provider 429 without cascading into full review fan-out', async () => {
   let providerRequestCount = 0;
@@ -101,10 +61,6 @@ test('analyze returns provider 429 without cascading into full review fan-out', 
   }
 });
 
-const isVisionProbeRequest = (body: string): boolean => (
-  body.includes('capability detector') && body.includes('image_url')
-);
-
 test('non-vision compatible models probe image support before OCR fallback', async () => {
   const providerBodies: string[] = [];
   const providerServer = http.createServer(async (req, res) => {
@@ -124,36 +80,8 @@ test('non-vision compatible models probe image support before OCR fallback', asy
       return;
     }
 
-    const routeResponse = {
-      needLegalFinance: false,
-      needLegalCommerce: false,
-      needLegalNet: false,
-      needSocial: false,
-      needEsg: false,
-      needPrivacy: false,
-      needYouth: false,
-      needCopyright: false,
-      legalProductSegment: '',
-    };
-    const analysisResponse = {
-      parsedMeta: {
-        productType: '일반광고',
-        targets: '일반 대중',
-        regulatoryDomain: '표시광고법',
-        channels: '모든 채널',
-      },
-      score: 100,
-      violations: [],
-      matchedLaws: [],
-      imageAlternativeProposal: {
-        detectedVisualCopys: [],
-        visualViolations: [],
-        visualRemediationSteps: [],
-        alternativeVisualDraft: '',
-      },
-    };
     const nonProbeCallCount = providerBodies.filter((body) => !isVisionProbeRequest(body)).length;
-    const content = nonProbeCallCount === 1 ? routeResponse : analysisResponse;
+    const content = nonProbeCallCount === 1 ? buildRouteResponse() : buildCleanAnalysisResponse();
 
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({
@@ -200,38 +128,15 @@ test('catalog vision models skip probe and send image payloads directly', async 
     }
 
     providerBodies.push(await readRequestBody(req));
-    const routeResponse = {
-      needLegalFinance: false,
-      needLegalCommerce: false,
-      needLegalNet: false,
-      needSocial: false,
-      needEsg: false,
-      needPrivacy: false,
-      needYouth: false,
-      needCopyright: false,
-      legalProductSegment: '',
-    };
-    const analysisResponse = {
-      parsedMeta: {
-        productType: '일반광고',
-        targets: '일반 대중',
-        regulatoryDomain: '표시광고법',
-        channels: '모든 채널',
-      },
-      score: 100,
-      violations: [],
-      matchedLaws: [],
-      imageAlternativeProposal: {
-        detectedVisualCopys: [],
-        visualViolations: [],
-        visualRemediationSteps: [],
-        alternativeVisualDraft: '',
-      },
-    };
-
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({
-      choices: [{ message: { content: JSON.stringify(providerBodies.length === 1 ? routeResponse : analysisResponse) } }],
+      choices: [{
+        message: {
+          content: JSON.stringify(
+            providerBodies.length === 1 ? buildRouteResponse() : buildCleanAnalysisResponse(),
+          ),
+        },
+      }],
     }));
   });
 
@@ -287,38 +192,16 @@ test('image processing errors after a positive probe fall back to OCR retry', as
     }
 
     const nonImageCallCount = providerBodies.filter((body) => !isVisionProbeRequest(body) && !body.includes('image_url')).length;
-    const routeResponse = {
-      needLegalFinance: false,
-      needLegalCommerce: false,
-      needLegalNet: false,
-      needSocial: false,
-      needEsg: false,
-      needPrivacy: false,
-      needYouth: false,
-      needCopyright: false,
-      legalProductSegment: '',
-    };
-    const analysisResponse = {
-      parsedMeta: {
-        productType: '일반광고',
-        targets: '일반 대중',
-        regulatoryDomain: '표시광고법',
-        channels: '모든 채널',
-      },
-      score: 100,
-      violations: [],
-      matchedLaws: [],
-      imageAlternativeProposal: {
-        detectedVisualCopys: [],
-        visualViolations: [],
-        visualRemediationSteps: [],
-        alternativeVisualDraft: '',
-      },
-    };
 
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({
-      choices: [{ message: { content: JSON.stringify(nonImageCallCount === 1 ? routeResponse : analysisResponse) } }],
+      choices: [{
+        message: {
+          content: JSON.stringify(
+            nonImageCallCount === 1 ? buildRouteResponse() : buildCleanAnalysisResponse(),
+          ),
+        },
+      }],
     }));
   });
 

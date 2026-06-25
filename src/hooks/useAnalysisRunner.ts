@@ -4,6 +4,7 @@ import type { SystemAnalysisResult } from '../types';
 import type { UploadedImage } from './useImageUploads';
 import { apiClient } from '../services/api';
 import { getErrorMessage } from '../utils/errors';
+import { shouldProbeVisionCapability } from '../../shared/modelCapabilities';
 
 export type AnalysisMode = 'optimized' | 'full';
 
@@ -20,13 +21,21 @@ interface UseAnalysisRunnerParams {
   readonly refreshHistory: () => Promise<void>;
 }
 
-const updateAnalysisProgress = (setStatus: Dispatch<SetStateAction<string>>, setProgress: Dispatch<SetStateAction<number>>): void => {
+const updateAnalysisProgress = (
+  setStatus: Dispatch<SetStateAction<string>>,
+  setProgress: Dispatch<SetStateAction<number>>,
+  visionProbeExpected: boolean
+): void => {
   setProgress((prev) => {
     if (prev >= 95) return prev;
     const remains = 100 - prev;
     const step = Math.max(1, Math.round(remains * 0.12));
     const next = Math.min(95, prev + step);
-    if (next < 20) {
+    if (visionProbeExpected && next < 35) {
+      setStatus("1단계: 검증된 비전 모델 카탈로그 대조 및 이미지 처리 가능 여부 probe 중...");
+    } else if (visionProbeExpected && next < 55) {
+      setStatus("2단계: 이미지 직접 처리 불가 시 서버 OCR 문구 추출 및 텍스트 심사 입력 전환 중...");
+    } else if (next < 20) {
       setStatus("1단계: 오케스트레이터 에이전트 기동 및 메타 정보 추출 중...");
     } else if (next < 40) {
       setStatus("2단계: 하이브리드 RAG 엔진 가동 및 대한민국 법규/판례 키워드 대조 중...");
@@ -71,10 +80,17 @@ export const useAnalysisRunner = ({
     setLocalLlmErrorText(null);
     setLoading(true);
     setAnalysisProgress(3);
-    setAnalysisStatusMsg("오케스트레이터 에이전트 기동 및 광고 원안/이미지 파싱 중...");
+    const visionProbeExpected = shouldProbeVisionCapability({
+      adapterType,
+      modelName: customModel,
+      hasImages,
+    });
+    setAnalysisStatusMsg(visionProbeExpected
+      ? "선택한 OpenAI-compatible/로컬 모델의 이미지 처리 가능 여부를 먼저 확인합니다. 지원되지 않으면 서버 OCR로 이미지 문구를 추출해 텍스트 심사로 전환합니다."
+      : "오케스트레이터 에이전트 기동 및 광고 원안/이미지 파싱 중...");
 
     const progressInterval = setInterval(() => {
-      updateAnalysisProgress(setAnalysisStatusMsg, setAnalysisProgress);
+      updateAnalysisProgress(setAnalysisStatusMsg, setAnalysisProgress, visionProbeExpected);
     }, 450);
 
     try {
@@ -126,4 +142,3 @@ export const useAnalysisRunner = ({
     triggerAnalysis,
   };
 };
-

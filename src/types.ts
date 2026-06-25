@@ -76,6 +76,9 @@ export interface SystemAnalysisResult {
   };
   modelUsed?: string;
   agentsActivated?: string[];
+  ocrFallbackUsed?: boolean;
+  ocrExtractedText?: string;
+  ocrNotice?: string;
 }
 
 export interface RegulationClause {

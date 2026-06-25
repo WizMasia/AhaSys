@@ -33,6 +33,42 @@ interface HistoryTabProps {
   };
 }
 
+const matchesHistoryCategory = (item: HistoryItem, filter: string): boolean => {
+  if (filter === 'all') return true;
+
+  const type = item.meta?.productType || "";
+
+  switch (filter) {
+    case 'food':
+      return type.includes('식품');
+    case 'cosmetic':
+      return type.includes('화장품');
+    case 'medical':
+      return type.includes('의료');
+    case 'finance':
+      return type.includes('금융');
+    case 'general':
+      return !type.includes('식품') && !type.includes('화장품') && !type.includes('의료') && !type.includes('금융');
+    default:
+      return true;
+  }
+};
+
+const matchesHistoryVerdict = (item: HistoryItem, filter: string): boolean => {
+  if (filter === 'all') return true;
+
+  const isPassed = item.score >= 80;
+
+  switch (filter) {
+    case 'passed':
+      return isPassed;
+    case 'failed':
+      return !isPassed;
+    default:
+      return true;
+  }
+};
+
 export function HistoryTab({
   historyItems,
   historySearchQuery,
@@ -54,23 +90,8 @@ export function HistoryTab({
         (item.inputText && item.inputText.toLowerCase().includes(q)) ||
         (item.meta?.productType && item.meta.productType.toLowerCase().includes(q)) ||
         (item.meta?.regulatoryDomain && item.meta.regulatoryDomain.toLowerCase().includes(q));
-      
-      let matchesCategory = true;
-      if (historyCategoryFilter !== 'all') {
-        const type = item.meta?.productType || "";
-        if (historyCategoryFilter === 'food') matchesCategory = type.includes('식품');
-        else if (historyCategoryFilter === 'cosmetic') matchesCategory = type.includes('화장품');
-        else if (historyCategoryFilter === 'medical') matchesCategory = type.includes('의료');
-        else if (historyCategoryFilter === 'finance') matchesCategory = type.includes('금융');
-        else if (historyCategoryFilter === 'general') matchesCategory = !type.includes('식품') && !type.includes('화장품') && !type.includes('의료') && !type.includes('금융');
-      }
-
-      let matchesVerdict = true;
-      if (historyVerdictFilter !== 'all') {
-        const isPassed = item.score >= 80;
-        if (historyVerdictFilter === 'passed') matchesVerdict = isPassed;
-        else if (historyVerdictFilter === 'failed') matchesVerdict = !isPassed;
-      }
+      const matchesCategory = matchesHistoryCategory(item, historyCategoryFilter);
+      const matchesVerdict = matchesHistoryVerdict(item, historyVerdictFilter);
 
       return matchesSearch && matchesCategory && matchesVerdict;
     });

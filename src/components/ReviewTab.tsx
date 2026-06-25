@@ -24,6 +24,8 @@ import Markdown from 'react-markdown';
 import { SystemAnalysisResult } from '../types';
 import { useApp } from '../contexts/AppContext';
 
+const GEMINI_TESTED_NOTICE = '현재 광고 검토 품질 테스트는 Gemini 어댑터 기준으로만 진행했습니다. 다른 모델에서는 위반 검출과 보고서 품질이 안정적이지 않을 수 있습니다.';
+
 const getPredictedAgents = (text: string, hasImages: boolean) => {
   const agents = ["LEGAL_PRODUCT (식의약/보건)"];
   const t = (text || "").toLowerCase();
@@ -141,6 +143,25 @@ export function ReviewTab({
   const hasCustomKey = !!(customApiKey && customApiKey.trim());
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      <div className={`rounded-2xl border p-4 text-xs leading-relaxed no-print ${
+        darkMode ? 'border-amber-500/20 bg-amber-500/10 text-amber-200' : 'border-amber-300 bg-amber-50 text-amber-900'
+      }`}>
+        <div className="flex items-start gap-2">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="space-y-2">
+            <p className="font-bold">{GEMINI_TESTED_NOTICE}</p>
+            {adapterType !== 'GEMINI' && (
+              <button
+                type="button"
+                onClick={() => { setActiveTab('settings'); setErrorText(null); }}
+                className="rounded-md border border-amber-500/30 px-2.5 py-1 text-[11px] font-black text-amber-300 transition-colors hover:bg-amber-500/10"
+              >
+                Gemini 설정으로 이동
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
       
       {/* Urgent Gemini Quota/API Alert Banner */}
       {((errorText && (errorText.includes('Key') || errorText.includes('키') || errorText.includes('API') || errorText.includes('Quota') || errorText.includes('사용량') || errorText.includes('429') || errorText.includes('limit'))) || showKeyAlert) && (
@@ -539,7 +560,7 @@ export function ReviewTab({
           <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs space-y-1.5 leading-relaxed">
             <div className="flex gap-2 font-bold text-amber-400">
               <HelpCircle className="w-4 h-4 shrink-0" />
-              <span>💡 로컬 서버 미연결 안내 (Local LLM Connection Guide)</span>
+              <span>분석 처리 안내</span>
             </div>
             <p className="pl-6 text-slate-300 whitespace-pre-wrap">{localLlmErrorText}</p>
           </div>
@@ -662,6 +683,29 @@ export function ReviewTab({
                 </div>
               );
             })()}
+
+            {analysisResult.ocrFallbackUsed && (
+              <div className={`p-5 rounded-2xl border space-y-3 printable-report ${
+                darkMode ? 'bg-amber-500/10 border-amber-500/25 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-950'
+              }`}>
+                <div className="flex items-start gap-2.5">
+                  <FileText className="w-5 h-5 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-black">OCR 텍스트 기반 이미지 검토로 전환됨</h4>
+                    <p className="text-xs leading-relaxed">
+                      {analysisResult.ocrNotice || '선택한 모델이 이미지 입력을 직접 처리하지 못하는 것으로 확인되어, 서버 OCR로 추출한 문구만 광고 심사에 반영했습니다.'}
+                    </p>
+                  </div>
+                </div>
+                {analysisResult.ocrExtractedText && (
+                  <pre className={`max-h-36 overflow-auto whitespace-pre-wrap rounded-xl border p-3 text-[11px] leading-relaxed ${
+                    darkMode ? 'bg-slate-950/50 border-amber-500/15 text-slate-200' : 'bg-white/70 border-amber-200 text-slate-800'
+                  }`}>
+                    {analysisResult.ocrExtractedText}
+                  </pre>
+                )}
+              </div>
+            )}
 
             {/* Token Consumption & Analysis Latency Analytics Box when using LLM */}
             {(analysisResult.usage || analysisResult.analysisTimeMs) && (

@@ -26,6 +26,7 @@ import { SettingsTab } from './components/SettingsTab';
 import { AboutTab } from './components/AboutTab';
 import { BenchmarkTab } from './components/BenchmarkTab';
 import { HistoryTab } from './components/HistoryTab';
+import { MobileTabBar } from './components/MobileTabBar';
 import { ReviewTab } from './components/ReviewTab';
 import { useAnalysisRunner } from './hooks/useAnalysisRunner';
 import { useBenchmarkRunner } from './hooks/useBenchmarkRunner';
@@ -510,6 +511,11 @@ export default function App() {
     setActiveTab('review');
   };
 
+  const handleTabSelect = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    setErrorText(null);
+  };
+
   return (
     <div className={`min-h-screen transition-colors duration-300 font-sans tracking-tight ${darkMode ? 'bg-[#060913] text-slate-100 dark' : 'bg-slate-50 text-slate-900'}`}>
       
@@ -608,8 +614,15 @@ export default function App() {
         </div>
       </nav>
 
+      <MobileTabBar
+        activeTab={activeTab}
+        darkMode={darkMode}
+        showBenchmarkTab={showBenchmarkTab}
+        onSelect={handleTabSelect}
+      />
+
       {/* Main Container Layout */}
-      <main className={`max-w-7xl mx-auto px-6 py-8 no-print ${fontSize === 'sm' ? 'text-size-sm' : fontSize === 'lg' ? 'text-size-lg' : 'text-size-md'}`}>
+      <main className={`max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8 no-print ${fontSize === 'sm' ? 'text-size-sm' : fontSize === 'lg' ? 'text-size-lg' : 'text-size-md'}`}>
         
         {/* TAB 1: REALTIME REVIEW INTERFACE */}
         {activeTab === 'review' && (

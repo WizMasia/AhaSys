@@ -3,9 +3,11 @@ build/
 dist/
 coverage/
 .DS_Store
+._*
 *.log
 .env*
 !.env.example
 .omo/
 .sisyphus/
+.playwright-mcp/
 *.original.md

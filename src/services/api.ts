@@ -3,54 +3,39 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SystemAnalysisResult, BenchmarkCase } from '../types';
+import type { BenchmarkCase } from '../types';
+import type {
+  AnalyzeCompliancePayload,
+  AnalyzeComplianceResponse,
+  BenchmarkRunResponse,
+  ClearHistoryResponse,
+  FetchProxyModelsResponse,
+  HistoryItem,
+} from '../types/api';
 
-export interface AnalyzeCompliancePayload {
-  text: string;
-  url: string;
-  context: string;
-  imagePresent: boolean;
-  images: string[];
-  adapter: string;
-  modelName: string;
-  endpoint?: string;
-  apiKey?: string;
-  analysisMode?: string;
-}
-
-export interface HistItem {
-  id: string;
-  inputText: string;
-  imagePresent: boolean;
-  score: number;
-  verdict: 'Approved' | 'Rejected';
-  meta: any;
-  timestamp: string;
-  result?: any;
-}
-
-export interface BenchmarkRunResponse {
-  success: boolean;
-  passed: number;
-  failed: number;
-  total: number;
-  reportLink: string;
-  testRuns: any[];
-}
-
-export interface FetchProxyModelsResponse {
-  success: boolean;
-  models: string[];
-  message?: string;
-  error?: boolean;
-}
+const extractErrorMessage = async (response: Response, fallback: string): Promise<string> => {
+  try {
+    const data: unknown = await response.json();
+    if (
+      typeof data === 'object' &&
+      data !== null &&
+      'message' in data &&
+      typeof data.message === 'string'
+    ) {
+      return data.message;
+    }
+  } catch {
+    return fallback;
+  }
+  return fallback;
+};
 
 export const apiClient = {
   /**
    * Retrieves the cumulative self-learning compliance history log from RAG.
    * GET /api/history
    */
-  async getHistory(): Promise<HistItem[]> {
+  async getHistory(): Promise<HistoryItem[]> {
     const response = await fetch('/api/history');
     if (!response.ok) {
       throw new Error('Failed to retrieve history nodes.');
@@ -62,7 +47,7 @@ export const apiClient = {
    * Clears/resets the compliance history log.
    * DELETE /api/history
    */
-  async clearHistory(): Promise<{ success: boolean; message: string }> {
+  async clearHistory(): Promise<ClearHistoryResponse> {
     const response = await fetch('/api/history', {
       method: 'DELETE',
     });
@@ -102,7 +87,7 @@ export const apiClient = {
    * Submits advertisement copy and images for strict autonomous regulatory review.
    * POST /api/analyze
    */
-  async analyzeCompliance(payload: AnalyzeCompliancePayload): Promise<SystemAnalysisResult & { error?: boolean; message?: string; localLlmError?: string }> {
+  async analyzeCompliance(payload: AnalyzeCompliancePayload): Promise<AnalyzeComplianceResponse> {
     const response = await fetch('/api/analyze', {
       method: 'POST',
       headers: {
@@ -122,14 +107,7 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      let errorMessage = '서버 컴플라이언스 엔진 연결 중 심각한 예외가 촉발해 통신이 중단되었습니다.';
-      try {
-        const errJson = await response.json();
-        if (errJson && errJson.message) {
-          errorMessage = errJson.message;
-        }
-      } catch (_) {}
-      throw new Error(errorMessage);
+      throw new Error(await extractErrorMessage(response, '서버 컴플라이언스 엔진 연결 중 심각한 예외가 촉발해 통신이 중단되었습니다.'));
     }
 
     return response.json();
@@ -152,14 +130,7 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      let errorMessage = '모델 목록을 조회하지 못했습니다. 엔드포인트 응답 상태와 서버가 켜져 있는지 확인하십시오.';
-      try {
-        const errJson = await response.json();
-        if (errJson && errJson.message) {
-          errorMessage = errJson.message;
-        }
-      } catch (_) {}
-      throw new Error(errorMessage);
+      throw new Error(await extractErrorMessage(response, '모델 목록을 조회하지 못했습니다. 엔드포인트 응답 상태와 서버가 켜져 있는지 확인하십시오.'));
     }
 
     return response.json();

@@ -13,6 +13,17 @@ import {
 } from 'lucide-react';
 import { LLMType } from '../types';
 import { useApp } from '../contexts/AppContext';
+import {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_LM_STUDIO_ENDPOINT,
+  DEFAULT_LM_STUDIO_MODEL,
+  DEFAULT_OLLAMA_ENDPOINT,
+  DEFAULT_OLLAMA_MODEL,
+  DEFAULT_OPENAI_ENDPOINT,
+  DEFAULT_OPENAI_MODEL,
+  DEFAULT_OPENROUTER_ENDPOINT,
+  DEFAULT_OPENROUTER_MODEL,
+} from '../constants/llm';
 
 export function SettingsTab() {
   const {
@@ -52,22 +63,22 @@ export function SettingsTab() {
   const applyLocalPreset = (preset: 'ollama' | 'lmstudio') => {
     setLocalPreset(preset);
     if (preset === 'ollama') {
-      setDraftCustomEndpoint('http://localhost:11434/v1');
-      setDraftCustomModel('gemma2:9b');
+      setDraftCustomEndpoint(DEFAULT_OLLAMA_ENDPOINT);
+      setDraftCustomModel(DEFAULT_OLLAMA_MODEL);
     } else {
-      setDraftCustomEndpoint('http://localhost:1234/v1');
-      setDraftCustomModel('gemma-2-9b-it');
+      setDraftCustomEndpoint(DEFAULT_LM_STUDIO_ENDPOINT);
+      setDraftCustomModel(DEFAULT_LM_STUDIO_MODEL);
     }
   };
 
   const applyOtherPreset = (preset: 'openai' | 'openrouter' | 'custom') => {
     setOtherPreset(preset);
     if (preset === 'openai') {
-      setDraftCustomEndpoint('https://api.openai.com/v1');
-      setDraftCustomModel('gpt-4o-mini');
+      setDraftCustomEndpoint(DEFAULT_OPENAI_ENDPOINT);
+      setDraftCustomModel(DEFAULT_OPENAI_MODEL);
     } else if (preset === 'openrouter') {
-      setDraftCustomEndpoint('https://openrouter.ai/api/v1');
-      setDraftCustomModel('openrouter/free');
+      setDraftCustomEndpoint(DEFAULT_OPENROUTER_ENDPOINT);
+      setDraftCustomModel(DEFAULT_OPENROUTER_MODEL);
     } else {
       setDraftCustomEndpoint('');
       setDraftCustomModel('');
@@ -129,7 +140,7 @@ export function SettingsTab() {
             id="settings_adapter_tab_gemini"
             onClick={() => {
               setDraftAdapterType(LLMType.GEMINI);
-              setDraftCustomModel('gemini-3.5-flash');
+              setDraftCustomModel(DEFAULT_GEMINI_MODEL);
             }}
             className={`py-3 px-2 rounded-xl border text-xs font-black cursor-pointer text-center transition-all ${draftAdapterType === LLMType.GEMINI ? 'border-amber-500 bg-amber-500/15 text-amber-400 font-extrabold shadow-md' : 'border-slate-800 bg-slate-900/40 text-slate-400 hover:text-slate-350 hover:bg-slate-900/60'}`}
           >
@@ -216,7 +227,7 @@ export function SettingsTab() {
                   type="text"
                   value={draftCustomEndpoint}
                   onChange={(e) => setDraftCustomEndpoint(e.target.value)}
-                  placeholder={localPreset === 'ollama' ? 'http://localhost:11434/v1' : 'http://localhost:1234/v1'}
+                  placeholder={localPreset === 'ollama' ? DEFAULT_OLLAMA_ENDPOINT : DEFAULT_LM_STUDIO_ENDPOINT}
                   className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:ring-1 focus:ring-amber-500 font-mono"
                 />
               </div>
@@ -261,7 +272,7 @@ export function SettingsTab() {
                       type="text"
                       value={draftCustomModel}
                       onChange={(e) => setDraftCustomModel(e.target.value)}
-                      placeholder={localPreset === 'ollama' ? 'gemma2:9b' : 'gemma-2-9b-it'}
+                      placeholder={localPreset === 'ollama' ? DEFAULT_OLLAMA_MODEL : DEFAULT_LM_STUDIO_MODEL}
                       className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:ring-1 focus:ring-amber-500 font-mono"
                     />
                     <p className="text-[10px] text-slate-500">&bull; 원하시는 모델명이 모델 목록 가져오기 전인 경우 직접 기입해 주셔도 됩니다.</p>
@@ -330,14 +341,14 @@ export function SettingsTab() {
                 <label className="block text-[11px] text-slate-400 mb-1 font-bold flex items-center justify-between">
                   <span>엔드포인트 주소 (Endpoint Host URL)</span>
                   <span className="text-[10px] text-indigo-400 font-mono italic">
-                    {otherPreset === 'openai' ? '기본: https://api.openai.com/v1' : (otherPreset === 'openrouter' ? '기본: https://openrouter.ai/api/v1' : '사용자 입력')}
+                    {otherPreset === 'openai' ? `기본: ${DEFAULT_OPENAI_ENDPOINT}` : (otherPreset === 'openrouter' ? `기본: ${DEFAULT_OPENROUTER_ENDPOINT}` : '사용자 입력')}
                   </span>
                 </label>
                 <input
                   type="text"
                   value={draftCustomEndpoint}
                   onChange={(e) => setDraftCustomEndpoint(e.target.value)}
-                  placeholder="https://api.openai.com/v1"
+                  placeholder={DEFAULT_OPENAI_ENDPOINT}
                   className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-700 focus:ring-1 focus:ring-amber-500 font-mono"
                 />
               </div>
@@ -393,7 +404,7 @@ export function SettingsTab() {
                       type="text"
                       value={draftCustomModel}
                       onChange={(e) => setDraftCustomModel(e.target.value)}
-                      placeholder={otherPreset === 'openai' ? 'gpt-4o-mini' : (otherPreset === 'openrouter' ? 'openrouter/free' : 'google/gemini-2.5-flash')}
+                  placeholder={otherPreset === 'openai' ? DEFAULT_OPENAI_MODEL : (otherPreset === 'openrouter' ? DEFAULT_OPENROUTER_MODEL : 'google/gemini-2.5-flash')}
                       className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:ring-1 focus:ring-amber-500 font-mono"
                     />
                     <p className="text-[10px] text-slate-505 font-medium">&bull; 각 제공업체의 모델 명명 규칙에 맞춥니다 (gpt-4o, openrouter/free 등).</p>

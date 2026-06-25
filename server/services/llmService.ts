@@ -4,13 +4,13 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
-import fs from 'node:fs/promises';
 import { REGULATORY_LIBRARY } from '../db/regulatoryLibrary';
 import { getSystemInstruction, getSocialControversyInstruction, getEsgGreenwashingInstruction, getPrivacyProtectionInstruction, getYouthProtectionInstruction, getOrchestratorRoutingInstruction, getCopyrightProtectionInstruction, getLegalFinanceInstruction, getLegalCommerceInstruction, getLegalNetInstruction } from '../prompts/compliancePrompt';
 import { BENCHMARK_CASES } from './benchmarkCases';
 import { addToHistoryCollection, clearHistoryCollection, getHistoryCollection } from './historyStore';
 import { retrieveFewShots, retrieveGuidelines } from './rag';
 import { modelSupportsVision, shouldProbeVisionCapability } from '../../shared/modelCapabilities';
+import { extractTextWithEasyOcr, isEasyOcrAvailable } from './easyOcrService';
 
 export { BENCHMARK_CASES, clearHistoryCollection, getHistoryCollection, retrieveGuidelines };
 
@@ -20,8 +20,6 @@ export const DEFAULT_PRODUCT_TYPE = "일반광고";
 export const DEFAULT_TARGETS = "일반 대중";
 export const DEFAULT_REGULATORY_DOMAIN = "표시광고법";
 export const DEFAULT_CHANNELS = "모든 채널";
-const DEFAULT_OCR_LANGUAGES = 'kor+eng';
-const DEFAULT_OCR_CACHE_PATH = '/tmp/tesseract-cache';
 
 // Helpers
 export function repairAndParseJson(text: string, fallback: any = null): any {
@@ -295,19 +293,9 @@ export const probeModelVisionCapability = async (params: VisionProbeParams): Pro
 };
 
 export const extractTextFromImages = async (imagePayloads: readonly string[]): Promise<string> => {
-  const { default: Tesseract } = await import('tesseract.js');
-  Tesseract.setLogging(false);
-  const languages = process.env.OCR_LANGUAGES || DEFAULT_OCR_LANGUAGES;
-  const cachePath = process.env.OCR_CACHE_PATH || DEFAULT_OCR_CACHE_PATH;
-  await fs.mkdir(cachePath, { recursive: true });
-
-  const extractedTexts = await Promise.all(imagePayloads.map(async (imagePayload, index) => {
-    const result = await Tesseract.recognize(imagePayload, languages, { cachePath });
-    const text = result.data.text.trim();
-    return text ? `[이미지 ${index + 1} OCR]\n${text}` : '';
-  }));
-
-  return extractedTexts.filter((text) => text.trim()).join('\n\n');
+  if (imagePayloads.length === 0) return '';
+  if (!isEasyOcrAvailable()) return '';
+  return extractTextWithEasyOcr(imagePayloads);
 };
 
 const buildOcrFallbackContext = async (params: {
@@ -327,9 +315,11 @@ const buildOcrFallbackContext = async (params: {
 
   const notice = extractedText
     ? `${params.reason} 첨부 이미지는 서버 OCR로 문구를 추출한 뒤 OCR 텍스트만 광고 심사에 반영했습니다.`
-    : ocrErrorMessage
-      ? `${params.reason} 서버 OCR을 실행했지만 실패했습니다. OCR 오류: ${ocrErrorMessage}. 따라서 시각 요소 평가는 제외되고 입력 텍스트만 심사했습니다.`
-    : `${params.reason} 서버 OCR을 실행했지만, 이미지에서 판독 가능한 문구를 찾지 못했습니다. 따라서 시각 요소 평가는 제외되고 입력 텍스트만 심사했습니다.`;
+    : !isEasyOcrAvailable()
+      ? `${params.reason} 이 환경에서는 OCR 기능이 비활성화되어 있어 이미지 내부 텍스트를 추출하지 못했습니다. 시각 요소 평가는 제외되고 입력 텍스트만 광고 심사에 반영했습니다.`
+      : ocrErrorMessage
+        ? `${params.reason} 서버 OCR을 실행했지만 실패했습니다. OCR 오류: ${ocrErrorMessage}. 따라서 시각 요소 평가는 제외되고 입력 텍스트만 심사했습니다.`
+        : `${params.reason} 서버 OCR을 실행했지만, 이미지에서 판독 가능한 문구를 찾지 못했습니다. 따라서 시각 요소 평가는 제외되고 입력 텍스트만 심사했습니다.`;
 
   return {
     used: true,

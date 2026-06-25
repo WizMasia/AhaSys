@@ -56,6 +56,7 @@
 * **Node.js**: v18.0.0 이상 설치 권장
 * **npm** 또는 **yarn**
 * (선택) **Ollama**가 로컬 컴퓨터에 구동 중인 경우 (`ollama run gemma2:9b` 등)
+* (선택) **Python 3.10 ~ 3.12** + 약 1.5 GB 여유 디스크: OpenAI-호환/로컬 어댑터가 비전 입력을 거부할 때 비주얼 폴백 OCR을 돌리려면 [EasyOCR](https://github.com/JaidedAI/EasyOCR) Python 스택이 필요합니다. Render 데모는 `OCR_ENABLED=false`로 비활성화되어 있어 필수가 아닙니다. OS별 설치 절차는 [docs/ocr-setup.md](./docs/ocr-setup.md)를 참고해주세요.
 
 ### 2) 소스코드 내려받기 및 종속성 설치
 사용자 화면의 우측 상단 `[Export ZIP]` 메뉴를 눌러 소스 코드를 아카이브 파일 형태로 다운로드하고 압축을 해제합니다. 이후 터미널을 열고 다음 명령문을 수행합니다.

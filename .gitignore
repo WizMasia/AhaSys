@@ -11,3 +11,9 @@ coverage/
 .sisyphus/
 .playwright-mcp/
 *.original.md
+
+# Local Python venv for the EasyOCR fallback (dev-only, not shipped)
+.venv-ocr/
+
+# EasyOCR model cache (downloaded on first OCR call)
+.EasyOCR/

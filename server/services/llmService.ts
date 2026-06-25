@@ -920,6 +920,9 @@ export async function performAnalysis(params: {
   if (routeDecision.needCopyright) agentsActivated.push("COPYRIGHT (지식재산권 보호 심사)");
 
   const finalResultData: any = {
+    ocrFallbackUsed: false,
+    ocrExtractedText: '',
+    ocrNotice: '',
     parsedMeta: (parsedAgentsData[0] && parsedAgentsData[0].parsedMeta) || (parsedAgentsData[1] && parsedAgentsData[1].parsedMeta) || {
       productType: DEFAULT_PRODUCT_TYPE,
       targets: DEFAULT_TARGETS,

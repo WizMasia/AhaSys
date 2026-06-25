@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.5
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { 
   Sliders, 
   Settings, 
@@ -24,6 +24,17 @@ import {
   DEFAULT_OPENROUTER_ENDPOINT,
   DEFAULT_OPENROUTER_MODEL,
 } from '../constants/llm';
+
+const GEMINI_TESTED_NOTICE = '현재 광고 검토 품질 테스트는 Gemini 어댑터 기준으로만 진행했습니다. 다른 OpenAI 호환 모델이나 로컬 모델은 응답 구조 차이로 위반 검출과 보고서 품질이 불안정할 수 있습니다.';
+
+const getSortedModelOptions = (models: readonly string[], query: string): string[] => {
+  const needle = query.trim().toLowerCase();
+  const filteredModels = needle
+    ? models.filter((model) => model.toLowerCase().includes(needle))
+    : models;
+
+  return [...filteredModels].sort((first, second) => first.localeCompare(second, 'en', { sensitivity: 'base' }));
+};
 
 export function SettingsTab() {
   const {
@@ -49,6 +60,11 @@ export function SettingsTab() {
   const [draftCustomApiKey, setDraftCustomApiKey] = useState<string>(customApiKey);
   const [localPreset, setLocalPreset] = useState<string>(initialLocalPreset);
   const [otherPreset, setOtherPreset] = useState<string>(initialOtherPreset);
+  const [modelSearchQuery, setModelSearchQuery] = useState<string>("");
+  const sortedModelOptions = useMemo(
+    () => getSortedModelOptions(fetchedModels, modelSearchQuery),
+    [fetchedModels, modelSearchQuery]
+  );
 
   // Sync draft states when active settings change
   useEffect(() => {
@@ -125,6 +141,15 @@ export function SettingsTab() {
           대한민국의 복합적 광고 법규 및 RAG 가중 전파 수칙을 통섭하는 물리 어댑터 어레인지 환경설정입니다. 
           인프라 공유 기본 Gemini 모델을 활용할 수 있으나, 할당량 초과(429 Quota Exceeded) 예방이나 쾌적한 처리 향상을 위해 수동 API Key 우회 설정을 권장해 드립니다.
         </p>
+
+        <div className={`mt-4 rounded-2xl border p-3 text-[11px] leading-relaxed ${
+          darkMode ? 'border-amber-500/20 bg-amber-500/10 text-amber-200' : 'border-amber-300 bg-amber-50 text-amber-900'
+        }`}>
+          <div className="flex items-start gap-2">
+            <HelpCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p className="font-bold">{GEMINI_TESTED_NOTICE}</p>
+          </div>
+        </div>
       </div>
 
       {/* Model Switcher and Credentials Setup */}
@@ -253,18 +278,40 @@ export function SettingsTab() {
 
                 {fetchedModels.length > 0 ? (
                   <div className="space-y-2">
+                    <input
+                      type="search"
+                      value={modelSearchQuery}
+                      onChange={(e) => setModelSearchQuery(e.target.value)}
+                      placeholder="모델명 검색 후 선택"
+                      className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-teal-500 font-mono"
+                    />
                     <select
-                      value={draftCustomModel}
-                      onChange={(e) => setDraftCustomModel(e.target.value)}
+                      value={sortedModelOptions.includes(draftCustomModel) ? draftCustomModel : ""}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setDraftCustomModel(e.target.value);
+                        }
+                      }}
                       className="w-full p-2.5 rounded-lg bg-slate-900 border border-teal-500/40 text-xs text-teal-400 focus:ring-1 focus:ring-amber-500 font-extrabold cursor-pointer"
                     >
-                      {fetchedModels.map((m) => (
+                      <option value="" disabled className="bg-slate-950 text-slate-500">
+                        {sortedModelOptions.length > 0 ? 'ABC 정렬된 모델 목록에서 선택' : '검색 결과가 없습니다'}
+                      </option>
+                      {sortedModelOptions.map((m) => (
                         <option key={m} value={m} className="bg-slate-950 text-slate-300 font-mono">
                           {m}
                         </option>
                       ))}
                     </select>
-                    <p className="text-[10px] text-teal-500/80">&bull; 활성 PC로부터 검색 완료된 {fetchedModels.length}개의 가용 모델을 탑재했습니다.</p>
+                    <p className="text-[10px] text-teal-500/80">&bull; 전체 {fetchedModels.length}개 모델을 ABC 순서로 정렬했습니다. 현재 검색 결과는 {sortedModelOptions.length}개입니다.</p>
+                    <input
+                      type="text"
+                      value={draftCustomModel}
+                      onChange={(e) => setDraftCustomModel(e.target.value)}
+                      placeholder={localPreset === 'ollama' ? DEFAULT_OLLAMA_MODEL : DEFAULT_LM_STUDIO_MODEL}
+                      className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:ring-1 focus:ring-amber-500 font-mono"
+                    />
+                    <p className="text-[10px] text-slate-500">&bull; 검색 목록에 없어도 모델 ID를 직접 입력할 수 있습니다.</p>
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -385,18 +432,40 @@ export function SettingsTab() {
 
                 {fetchedModels.length > 0 ? (
                   <div className="space-y-2">
+                    <input
+                      type="search"
+                      value={modelSearchQuery}
+                      onChange={(e) => setModelSearchQuery(e.target.value)}
+                      placeholder="모델명 검색 후 선택"
+                      className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-indigo-500 font-mono"
+                    />
                     <select
-                      value={draftCustomModel}
-                      onChange={(e) => setDraftCustomModel(e.target.value)}
+                      value={sortedModelOptions.includes(draftCustomModel) ? draftCustomModel : ""}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setDraftCustomModel(e.target.value);
+                        }
+                      }}
                       className="w-full p-2.5 rounded-lg bg-slate-900 border border-indigo-500/35 text-xs text-teal-400 focus:ring-1 focus:ring-amber-500 font-extrabold cursor-pointer"
                     >
-                      {fetchedModels.map((m) => (
+                      <option value="" disabled className="bg-slate-950 text-slate-500">
+                        {sortedModelOptions.length > 0 ? 'ABC 정렬된 모델 목록에서 선택' : '검색 결과가 없습니다'}
+                      </option>
+                      {sortedModelOptions.map((m) => (
                         <option key={m} value={m} className="bg-slate-950 text-slate-300 font-mono">
                           {m}
                         </option>
                       ))}
                     </select>
-                    <p className="text-[10px] text-teal-500/80">&bull; 활성 API 서버로부터 검색 완료된 {fetchedModels.length}개의 가용 모델을 탑재했습니다.</p>
+                    <p className="text-[10px] text-teal-500/80">&bull; 전체 {fetchedModels.length}개 모델을 ABC 순서로 정렬했습니다. 현재 검색 결과는 {sortedModelOptions.length}개입니다.</p>
+                    <input
+                      type="text"
+                      value={draftCustomModel}
+                      onChange={(e) => setDraftCustomModel(e.target.value)}
+                      placeholder={otherPreset === 'openai' ? DEFAULT_OPENAI_MODEL : (otherPreset === 'openrouter' ? DEFAULT_OPENROUTER_MODEL : 'google/gemini-2.5-flash')}
+                      className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:ring-1 focus:ring-amber-500 font-mono"
+                    />
+                    <p className="text-[10px] text-slate-505 font-medium">&bull; 검색 목록에 없어도 제공업체 모델 ID를 직접 입력할 수 있습니다.</p>
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -404,7 +473,7 @@ export function SettingsTab() {
                       type="text"
                       value={draftCustomModel}
                       onChange={(e) => setDraftCustomModel(e.target.value)}
-                  placeholder={otherPreset === 'openai' ? DEFAULT_OPENAI_MODEL : (otherPreset === 'openrouter' ? DEFAULT_OPENROUTER_MODEL : 'google/gemini-2.5-flash')}
+                      placeholder={otherPreset === 'openai' ? DEFAULT_OPENAI_MODEL : (otherPreset === 'openrouter' ? DEFAULT_OPENROUTER_MODEL : 'google/gemini-2.5-flash')}
                       className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:ring-1 focus:ring-amber-500 font-mono"
                     />
                     <p className="text-[10px] text-slate-505 font-medium">&bull; 각 제공업체의 모델 명명 규칙에 맞춥니다 (gpt-4o, openrouter/free 등).</p>
